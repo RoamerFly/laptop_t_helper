@@ -26,14 +26,14 @@
 
   <Grid Background="{DynamicResource WindowBackgroundBrush}">
     <Viewbox Stretch="Uniform">
-      <Grid Width="1536" Height="1024" Background="{DynamicResource WindowBackgroundBrush}">
+      <Grid x:Name="DesignRoot" Width="1536" Height="1024" Background="{DynamicResource WindowBackgroundBrush}">
         <Grid.RowDefinitions>
           <RowDefinition Height="972" />
           <RowDefinition Height="52" />
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="278" />
-          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="278*" />
+          <ColumnDefinition Width="1258*" />
         </Grid.ColumnDefinitions>
 
         <Border Grid.Row="0"
@@ -181,9 +181,9 @@
 
           <Grid Grid.Row="0" Margin="18,26,22,18">
             <Grid.ColumnDefinitions>
-              <ColumnDefinition />
+              <ColumnDefinition Width="882*" />
               <ColumnDefinition Width="18" />
-              <ColumnDefinition Width="318" />
+              <ColumnDefinition Width="318*" />
             </Grid.ColumnDefinitions>
             <Border Grid.Column="0" Style="{StaticResource CardStyle}" Padding="28,0">
               <Grid>
@@ -206,7 +206,7 @@
                 </StackPanel>
               </Grid>
             </Border>
-            <Border Grid.Column="2" Style="{StaticResource CardStyle}" Padding="18,0">
+            <Border Grid.Column="2" Margin="0,39,0,0" Style="{StaticResource CardStyle}" Padding="18,0">
               <Grid>
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="64" />
@@ -390,12 +390,59 @@
             </Border>
           </Grid>
 
-          <Grid Height="46" HorizontalAlignment="Right" VerticalAlignment="Top" Panel.ZIndex="10" MouseLeftButtonDown="DragArea_MouseLeftButtonDown">
+          <Grid Height="54"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Panel.ZIndex="100"
+                MouseLeftButtonDown="DragArea_MouseLeftButtonDown">
             <StackPanel Orientation="Horizontal">
-              <Button x:Name="ThemeButton" Width="95" Margin="0,7,15,0" Height="30" Click="ThemeButton_Click" Content="☾  深色" Style="{StaticResource WindowButtonStyle}" FontFamily="{StaticResource AppFont}" FontSize="13" />
-              <Button Click="MinimizeButton_Click" Content="&#xE921;" Style="{StaticResource WindowButtonStyle}" />
-              <Button Click="MaximizeButton_Click" Content="&#xE922;" Style="{StaticResource WindowButtonStyle}" />
-              <Button Click="CloseButton_Click" Content="&#xE8BB;" Style="{StaticResource WindowButtonStyle}" />
+              <Button x:Name="ThemeButton"
+                      Width="95"
+                      Height="30"
+                      Margin="0,7,12,0"
+                      Click="ThemeButton_Click"
+                      Content="☾  深色"
+                      FontFamily="{StaticResource AppFont}"
+                      FontSize="13"
+                      Style="{StaticResource WindowButtonStyle}" />
+              <Button AutomationProperties.Name="最小化"
+                      Click="MinimizeButton_Click"
+                      Style="{StaticResource WindowButtonStyle}">
+                <Rectangle Width="13"
+                           Height="1.5"
+                           Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                           SnapsToDevicePixels="True" />
+              </Button>
+              <Button AutomationProperties.Name="最大化"
+                      Click="MaximizeButton_Click"
+                      Style="{StaticResource WindowButtonStyle}">
+                <Border Width="12"
+                        Height="12"
+                        BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                        BorderThickness="1.5" />
+              </Button>
+              <Button AutomationProperties.Name="关闭"
+                      Click="CloseButton_Click"
+                      Style="{StaticResource CloseWindowButtonStyle}">
+                <Grid Width="14" Height="14">
+                  <Rectangle Width="16"
+                             Height="1.5"
+                             Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                             RenderTransformOrigin="0.5,0.5">
+                    <Rectangle.RenderTransform>
+                      <RotateTransform Angle="45" />
+                    </Rectangle.RenderTransform>
+                  </Rectangle>
+                  <Rectangle Width="16"
+                             Height="1.5"
+                             Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                             RenderTransformOrigin="0.5,0.5">
+                    <Rectangle.RenderTransform>
+                      <RotateTransform Angle="-45" />
+                    </Rectangle.RenderTransform>
+                  </Rectangle>
+                </Grid>
+              </Button>
             </StackPanel>
           </Grid>
         </Grid>
