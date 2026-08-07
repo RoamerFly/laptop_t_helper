@@ -1,7 +1,6 @@
 @echo off
 setlocal EnableExtensions
 
-chcp 65001 >nul
 cd /d "%~dp0"
 
 set "APP_PROJECT=src\LaptopThermalHelper.App\LaptopThermalHelper.App.csproj"
@@ -85,8 +84,10 @@ echo   "%OUTPUT_DIR%\LaptopThermalHelper.App.exe" --mock
 exit /b 0
 
 :command_failed
+set "COMMAND_EXIT_CODE=%ERRORLEVEL%"
 echo.
-echo ERROR: A build command failed with exit code %ERRORLEVEL%.
+echo ERROR: A build command failed with exit code %COMMAND_EXIT_CODE%.
+exit /b %COMMAND_EXIT_CODE%
 
 :failed
 echo Build failed.
@@ -101,7 +102,7 @@ goto failed
 if exist "%PROCESS_FILE%" del /q "%PROCESS_FILE%" >nul 2>nul
 echo.
 echo PUBLISH PREFLIGHT FAILED: LaptopThermalHelper.App.exe is still running.
-echo Close the old instance from the system tray: right-click the app icon and choose "退出 (Exit)".
+echo Close the old instance from the system tray: right-click the app icon and choose "Exit".
 echo Alternatively, use Task Manager only to end your own old instance.
 echo The build stopped before changing "%OUTPUT_DIR%". No process was terminated.
 goto failed
@@ -113,18 +114,21 @@ echo PUBLISH PREFLIGHT FAILED: Unable to safely check whether LaptopThermalHelpe
 echo The build stopped before changing "%OUTPUT_DIR%". No process was terminated.
 goto failed
 
+:end_main
+goto :eof
+
 :try_dotnet
 if defined DOTNET_EXE exit /b 0
 if "%~1"=="" exit /b 0
 set "VERSION_FILE=%TEMP%\laptop-thermal-helper-dotnet-%RANDOM%-%RANDOM%.tmp"
 set "CANDIDATE_VERSION="
 "%~1" --version >"%VERSION_FILE%" 2>nul
-if errorlevel 1 goto try_dotnet_failed
+if errorlevel 1 goto try_dotnet_cleanup
 set /p "CANDIDATE_VERSION=" <"%VERSION_FILE%"
-if not "%CANDIDATE_VERSION:~0,3%"=="10." goto try_dotnet_failed
+if not "%CANDIDATE_VERSION:~0,3%"=="10." goto try_dotnet_cleanup
 set "DOTNET_EXE=%~1"
 set "SDK_VERSION=%CANDIDATE_VERSION%"
 
-:try_dotnet_failed
+:try_dotnet_cleanup
 if exist "%VERSION_FILE%" del /q "%VERSION_FILE%" >nul 2>nul
 exit /b 0
