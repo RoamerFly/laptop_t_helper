@@ -1,25 +1,25 @@
 <UserControl x:Class="LaptopThermalHelper.App.Views.AboutPage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+  <ScrollViewer VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
     <StackPanel Margin="22,18,24,24">
       <Grid Margin="0,0,0,18">
         <Grid.ColumnDefinitions><ColumnDefinition Width="98" /><ColumnDefinition /></Grid.ColumnDefinitions>
         <Image Width="78" Height="78" Source="/Assets/icon.png" Stretch="Uniform" />
-        <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock FontSize="25" FontWeight="SemiBold" Text="笔记本温控助手" /><TextBlock Margin="0,5,0,0" Foreground="{DynamicResource TextSecondaryBrush}" Text="v0.1.0 · Windows 桌面硬件监控工具" /></StackPanel>
+        <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock FontSize="25" FontWeight="SemiBold" Text="笔记本温控助手" /><TextBlock Margin="0,5,0,0" Foreground="{DynamicResource TextSecondaryBrush}" Text="{Binding ApplicationVersionText, StringFormat=v{0} · Windows 桌面硬件监控工具}" /></StackPanel>
       </Grid>
       <Grid>
         <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="16" /><ColumnDefinition /></Grid.ColumnDefinitions>
         <StackPanel>
-          <Border Style="{StaticResource CardStyle}" Padding="20" Margin="0,0,0,16"><StackPanel><TextBlock FontSize="18" FontWeight="SemiBold" Text="数据与安全边界" /><TextBlock Margin="0,12,0,0" TextWrapping="Wrap" LineHeight="25" Foreground="{DynamicResource TextSecondaryBrush}" Text="CPU、GPU、SSD 等传感器数据来自当前硬件 Provider。风扇、EC、BIOS、Fn+Q 和 Windows 电源策略在当前版本不会被直接控制。自动降温与电源策略仅为界面演示。" /></StackPanel></Border>
+          <Border Style="{StaticResource CardStyle}" Padding="20" Margin="0,0,0,16"><StackPanel><TextBlock FontSize="18" FontWeight="SemiBold" Text="当前运行与安全边界" /><TextBlock Margin="0,12,0,0" TextWrapping="Wrap" LineHeight="25" Foreground="{DynamicResource TextSecondaryBrush}" Text="{Binding HardwareModeText}" /><TextBlock Margin="0,8,0,0" TextWrapping="Wrap" LineHeight="25" Foreground="{DynamicResource TextSecondaryBrush}" Text="自动降温仅在用户主动启用后，使用 Windows 公开的处理器电源管理设置；绝不调用 EC、BIOS、厂商私有接口或风扇直控。" /><TextBlock Margin="0,8,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}" Text="{Binding AutoCoolingStatus}" /></StackPanel></Border>
           <Border Style="{StaticResource CardStyle}" Padding="20"><StackPanel><TextBlock FontSize="18" FontWeight="SemiBold" Text="第三方组件与许可证" /><TextBlock Margin="0,12,0,0" TextWrapping="Wrap" LineHeight="25" Foreground="{DynamicResource TextSecondaryBrush}" Text="本项目采用 MIT License，并通过 LibreHardwareMonitorLib 获取部分硬件读数。LibreHardwareMonitor 采用 MPL-2.0；详细声明见仓库 LICENSES 目录。" /><Button AutomationProperties.Name="查看许可证说明" Margin="0,16,0,0" HorizontalAlignment="Left" Command="{Binding ShowLicenseCommand}" Style="{StaticResource SecondaryButtonStyle}" Content="查看许可证说明" /></StackPanel></Border>
         </StackPanel>
         <StackPanel Grid.Column="2">
-          <Border Style="{StaticResource CardStyle}" Padding="20" Margin="0,0,0,16"><Grid><Grid.RowDefinitions><RowDefinition Height="36" /><RowDefinition Height="34" /><RowDefinition Height="34" /><RowDefinition Height="34" /></Grid.RowDefinitions><TextBlock FontSize="18" FontWeight="SemiBold" Text="运行环境" /><Grid Grid.Row="1"><TextBlock Foreground="{DynamicResource TextSecondaryBrush}" Text="目标框架" /><TextBlock HorizontalAlignment="Right" Text=".NET 10 / WPF" /></Grid><Grid Grid.Row="2"><TextBlock Foreground="{DynamicResource TextSecondaryBrush}" Text="硬件采集" /><TextBlock HorizontalAlignment="Right" Text="只读 Provider" /></Grid><Grid Grid.Row="3"><TextBlock Foreground="{DynamicResource TextSecondaryBrush}" Text="隐私" /><TextBlock HorizontalAlignment="Right" Text="不上传遥测数据" /></Grid></Grid></Border>
-          <Border Style="{StaticResource CardStyle}" Padding="20"><StackPanel><TextBlock FontSize="18" FontWeight="SemiBold" Text="更新" /><TextBlock Margin="0,10,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" Text="在线更新检查尚未接入；按钮会说明当前演示状态。" /><Button AutomationProperties.Name="检查更新" Margin="0,16,0,0" HorizontalAlignment="Left" Command="{Binding CheckForUpdatesCommand}" Style="{StaticResource SecondaryButtonStyle}" Content="检查更新" /></StackPanel></Border>
+          <Border Style="{StaticResource CardStyle}" Padding="20" Margin="0,0,0,16"><Grid><Grid.RowDefinitions><RowDefinition Height="36" /><RowDefinition Height="34" /><RowDefinition Height="34" /><RowDefinition Height="34" /></Grid.RowDefinitions><TextBlock FontSize="18" FontWeight="SemiBold" Text="运行环境" /><Grid Grid.Row="1"><TextBlock Foreground="{DynamicResource TextSecondaryBrush}" Text="目标框架" /><TextBlock HorizontalAlignment="Right" Text=".NET 10 / WPF" /></Grid><Grid Grid.Row="2"><TextBlock Foreground="{DynamicResource TextSecondaryBrush}" Text="硬件采集" /><TextBlock HorizontalAlignment="Right" Text="{Binding HardwareModeText}" TextTrimming="CharacterEllipsis" /></Grid><Grid Grid.Row="3"><TextBlock Foreground="{DynamicResource TextSecondaryBrush}" Text="隐私" /><TextBlock HorizontalAlignment="Right" Text="本地记录，不上传遥测" /></Grid></Grid></Border>
+          <Border Style="{StaticResource CardStyle}" Padding="20"><StackPanel><TextBlock FontSize="18" FontWeight="SemiBold" Text="更新" /><TextBlock Margin="0,10,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" Text="在线更新检查尚未接入；按钮会明确说明当前状态。" /><Button AutomationProperties.Name="检查更新" Margin="0,16,0,0" HorizontalAlignment="Left" Command="{Binding CheckForUpdatesCommand}" Style="{StaticResource SecondaryButtonStyle}" Content="检查更新" /></StackPanel></Border>
         </StackPanel>
       </Grid>
-      <Border Margin="0,16,0,0" Style="{StaticResource CardStyle}" Padding="14,11"><TextBlock Foreground="{DynamicResource InfoTextBrush}" Text="{Binding OperationFeedback}" /></Border>
+      <Border Margin="0,16,0,0" Style="{StaticResource CardStyle}" Padding="14,11"><TextBlock Foreground="{DynamicResource InfoTextBrush}" Text="{Binding OperationFeedback}" TextWrapping="Wrap" /></Border>
     </StackPanel>
   </ScrollViewer>
 </UserControl>

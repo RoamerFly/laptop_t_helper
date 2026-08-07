@@ -56,7 +56,22 @@ public sealed record DeviceSample(
     double? Load,
     double? Power,
     double? FanRpm,
-    DateTimeOffset Timestamp);
+    DateTimeOffset Timestamp)
+{
+    /// <summary>
+    /// Temperature readings exposed by the provider for this physical device.
+    /// These are source readings, not derived dashboard values, so a detail UI
+    /// can identify the exact sensor used for a displayed temperature.
+    /// </summary>
+    public IReadOnlyList<SensorReading> TemperatureSensors { get; init; } = [];
+
+    /// <summary>
+    /// Name of the sensor selected as the device's dashboard temperature.
+    /// A null value means the device is known but did not expose a usable
+    /// temperature reading.
+    /// </summary>
+    public string? PrimaryTemperatureSensorName { get; init; }
+}
 
 public sealed record DeviceSnapshot(
     string DeviceId,

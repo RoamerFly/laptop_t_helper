@@ -1,23 +1,23 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-  <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#071527" />
-  <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#0A192B" />
-  <SolidColorBrush x:Key="SurfaceBrush" Color="#132236" />
-  <SolidColorBrush x:Key="SurfaceAltBrush" Color="#172A40" />
-  <SolidColorBrush x:Key="BorderBrush" Color="#2B3C51" />
-  <SolidColorBrush x:Key="DividerBrush" Color="#26384B" />
-  <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F5F8FC" />
-  <SolidColorBrush x:Key="TextSecondaryBrush" Color="#BBC5D2" />
-  <SolidColorBrush x:Key="TextMutedBrush" Color="#8492A5" />
-  <SolidColorBrush x:Key="GaugeTrackBrush" Color="#334255" />
-  <SolidColorBrush x:Key="AccentBrush" Color="#2F85FF" />
-  <SolidColorBrush x:Key="AccentSoftBrush" Color="#173E78" />
-  <SolidColorBrush x:Key="BlueBrush" Color="#55A3FF" />
+  <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#091729" />
+  <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#0C1B2E" />
+  <SolidColorBrush x:Key="SurfaceBrush" Color="#122238" />
+  <SolidColorBrush x:Key="SurfaceAltBrush" Color="#182B42" />
+  <SolidColorBrush x:Key="BorderBrush" Color="#2A3E55" />
+  <SolidColorBrush x:Key="DividerBrush" Color="#23384E" />
+  <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F3F7FC" />
+  <SolidColorBrush x:Key="TextSecondaryBrush" Color="#B8C5D5" />
+  <SolidColorBrush x:Key="TextMutedBrush" Color="#8797AA" />
+  <SolidColorBrush x:Key="GaugeTrackBrush" Color="#33485F" />
+  <SolidColorBrush x:Key="AccentBrush" Color="#4A94FF" />
+  <SolidColorBrush x:Key="AccentSoftBrush" Color="#173965" />
+  <SolidColorBrush x:Key="BlueBrush" Color="#78B5FF" />
   <SolidColorBrush x:Key="PurpleBrush" Color="#8F63FF" />
   <SolidColorBrush x:Key="PurpleSoftBrush" Color="#3C2477" />
   <SolidColorBrush x:Key="PurpleTextBrush" Color="#C5AAFF" />
   <SolidColorBrush x:Key="InfoBrush" Color="#4CB3FF" />
-  <SolidColorBrush x:Key="InfoSoftBrush" Color="#173E60" />
+  <SolidColorBrush x:Key="InfoSoftBrush" Color="#173958" />
   <SolidColorBrush x:Key="InfoTextBrush" Color="#8DCAFF" />
   <SolidColorBrush x:Key="SuccessBrush" Color="#31D843" />
   <SolidColorBrush x:Key="WarningBrush" Color="#F6C52F" />

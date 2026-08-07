@@ -3,10 +3,12 @@ using LaptopThermalHelper.Core.Domain;
 
 namespace LaptopThermalHelper.Application.Hardware;
 
-public sealed class FakeHardwareMonitorProvider : IHardwareMonitorProvider
+public sealed class FakeHardwareMonitorProvider : IHardwareMonitorProvider, IHardwareMonitorProviderMetadata
 {
     private readonly Stopwatch _uptime = Stopwatch.StartNew();
     private readonly DateTimeOffset _startedAt = DateTimeOffset.Now;
+
+    public HardwareProviderMode Mode => HardwareProviderMode.Mock;
 
     public Task<IReadOnlyList<DeviceSample>> ReadAsync(CancellationToken cancellationToken)
     {
@@ -16,9 +18,9 @@ public sealed class FakeHardwareMonitorProvider : IHardwareMonitorProvider
 
         IReadOnlyList<DeviceSample> samples =
         [
-            Create("cpu", DeviceKind.Cpu, "Intel Core i7-11800H", 45, 98, 65, seconds + 18, now, 23, 28, 2100),
-            Create("gpu", DeviceKind.Gpu, "NVIDIA GeForce RTX 3060", 40, 88, 58, seconds + 18, now, 35, 61, 2000),
-            Create("ssd", DeviceKind.Storage, "西数 SN730 1TB", 35, 76, 45, seconds + 12, now, null, null, null),
+            Create("cpu", DeviceKind.Cpu, "模拟 CPU", 55, 102, 78, seconds + 18, now, 23, 28, 2100, "CPU Package"),
+            Create("gpu", DeviceKind.Gpu, "模拟 GPU", 45, 95, 76, seconds + 18, now, 35, 61, 2000, "GPU Core"),
+            Create("ssd", DeviceKind.Storage, "模拟 NVMe 存储", 35, 82, 62, seconds + 12, now, null, null, null, "Composite"),
         ];
 
         return Task.FromResult(samples);
@@ -37,12 +39,13 @@ public sealed class FakeHardwareMonitorProvider : IHardwareMonitorProvider
         DateTimeOffset timestamp,
         double? load,
         double? power,
-        double? fanRpm)
+        double? fanRpm,
+        string sensorName)
     {
         double temperature = InterpolateCycle(low, peak, recovered, seconds);
         double wave = Math.Sin(seconds / 7) * 3;
 
-        return new DeviceSample(
+        var sample = new DeviceSample(
             id,
             kind,
             name,
@@ -51,6 +54,24 @@ public sealed class FakeHardwareMonitorProvider : IHardwareMonitorProvider
             power is null ? null : Math.Max(0, power.Value + wave),
             fanRpm is null ? null : Math.Max(0, fanRpm.Value + wave * 35),
             timestamp);
+        return sample with
+        {
+            PrimaryTemperatureSensorName = sensorName,
+            TemperatureSensors =
+            [
+                new SensorReading(
+                    id,
+                    kind,
+                    name,
+                    $"{id}/temperature/primary",
+                    sensorName,
+                    SensorMetric.Temperature,
+                    sample.Temperature,
+                    "°C",
+                    timestamp,
+                    ReadingQuality.Good),
+            ],
+        };
     }
 
     private static double InterpolateCycle(double low, double peak, double recovered, double seconds)

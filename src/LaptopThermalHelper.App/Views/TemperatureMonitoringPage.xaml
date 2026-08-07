@@ -1,72 +1,231 @@
 <UserControl x:Class="LaptopThermalHelper.App.Views.TemperatureMonitoringPage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-    <StackPanel Margin="22,18,24,24">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF">
+  <UserControl.Resources>
+    <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+  </UserControl.Resources>
+
+  <ScrollViewer VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
+    <Grid Margin="22,18,24,24">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+      </Grid.RowDefinitions>
+
       <Grid Margin="0,0,0,16">
-        <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="154" /><ColumnDefinition Width="10" /><ColumnDefinition Width="104" /></Grid.ColumnDefinitions>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="154" />
+          <ColumnDefinition Width="10" />
+          <ColumnDefinition Width="104" />
+        </Grid.ColumnDefinitions>
         <StackPanel>
           <TextBlock FontSize="22" FontWeight="SemiBold" Text="温度监控" />
-          <TextBlock Margin="0,5,0,0" Foreground="{DynamicResource TextSecondaryBrush}" Text="已识别设备、主传感器和详情趋势。详情曲线当前使用 Mock 数据。" />
+          <TextBlock Margin="0,5,0,0"
+                     Foreground="{DynamicResource TextSecondaryBrush}"
+                     Text="读取当前传感器与本机已采样的温度历史；不执行任何硬件控制操作。" />
         </StackPanel>
-        <ComboBox Grid.Column="1" ItemsSource="{Binding TemperatureRanges}" SelectedItem="{Binding SelectedTemperatureRange, Mode=TwoWay}" Style="{StaticResource PageComboBoxStyle}" />
-        <Button Grid.Column="3" AutomationProperties.Name="刷新温度详情" Command="{Binding RefreshDetailsCommand}" Style="{StaticResource SecondaryButtonStyle}" Content="刷新详情" />
+        <ComboBox Grid.Column="1"
+                  AutomationProperties.Name="选择温度历史时间范围"
+                  ItemsSource="{Binding TemperatureDetail.Ranges}"
+                  SelectedItem="{Binding TemperatureDetail.SelectedRange, Mode=TwoWay}"
+                  Style="{StaticResource PageComboBoxStyle}" />
+        <Button Grid.Column="3"
+                AutomationProperties.Name="刷新温度详情"
+                Command="{Binding RefreshDetailsCommand}"
+                Style="{StaticResource SecondaryButtonStyle}"
+                Content="刷新详情" />
       </Grid>
 
-      <Border Margin="0,0,0,16" Style="{StaticResource CardStyle}" Padding="14,11">
-        <TextBlock Foreground="{DynamicResource InfoTextBrush}" Text="{Binding TemperatureRangeSummary}" />
+      <Border Grid.Row="1" Margin="0,0,0,16" Style="{StaticResource CardStyle}" Padding="14,11">
+        <TextBlock Foreground="{DynamicResource InfoTextBrush}" Text="{Binding TemperatureDetail.HistoryStatusText}" />
       </Border>
 
-      <Grid>
-        <Grid.ColumnDefinitions><ColumnDefinition Width="230" /><ColumnDefinition Width="16" /><ColumnDefinition /></Grid.ColumnDefinitions>
-        <Border Style="{StaticResource CardStyle}" Padding="14">
+      <Grid Grid.Row="2">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="230" />
+          <ColumnDefinition Width="16" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Border Style="{StaticResource CardStyle}" Padding="14" VerticalAlignment="Top">
           <Grid>
-            <Grid.RowDefinitions><RowDefinition Height="34" /><RowDefinition /><RowDefinition Height="56" /></Grid.RowDefinitions>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="34" />
+              <RowDefinition Height="*" />
+              <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
             <TextBlock FontSize="17" FontWeight="SemiBold" Text="设备树" />
-            <ListBox Grid.Row="1" BorderThickness="0" Background="Transparent" SelectedIndex="0">
-              <ListBoxItem Content="▾  CPU  Intel Core i7-11800H" />
-              <ListBoxItem Content="    ◉ CPU Package（主）" />
-              <ListBoxItem Content="    ○ Core Max" />
-              <ListBoxItem Content="▾  GPU  NVIDIA RTX 3060" />
-              <ListBoxItem Content="    ◉ GPU Core（主）" />
-              <ListBoxItem Content="▾  SSD  西数 SN730 1TB" />
-              <ListBoxItem Content="    ◉ Composite（主）" />
-            </ListBox>
-            <TextBlock Grid.Row="2" TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}" Text="主传感器由适配层自动选择；更改选择仅在后续版本开放。" />
+            <Grid Grid.Row="1" Margin="0,7,0,0">
+              <ItemsControl ItemsSource="{Binding TemperatureDetail.DeviceTree}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Grid Margin="0,0,0,11">
+                      <Grid.RowDefinitions><RowDefinition /><RowDefinition /></Grid.RowDefinitions>
+                      <Grid.ColumnDefinitions><ColumnDefinition Width="42" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                      <TextBlock FontWeight="SemiBold" Text="{Binding Device}" />
+                      <TextBlock Grid.Column="1" FontWeight="SemiBold" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,3,0,0" Foreground="{DynamicResource TextSecondaryBrush}" Text="{Binding Role}" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Grid.Row="1" HorizontalAlignment="Left" Margin="0,3,0,0" Foreground="{DynamicResource TextMutedBrush}" Text="{Binding CurrentText}" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock HorizontalAlignment="Center"
+                         VerticalAlignment="Center"
+                         TextAlignment="Center"
+                         TextWrapping="Wrap"
+                         Foreground="{DynamicResource TextMutedBrush}"
+                         Text="尚未发现可用温度设备"
+                         Visibility="{Binding TemperatureDetail.IsDeviceTreeEmpty, Converter={StaticResource BooleanToVisibilityConverter}}" />
+            </Grid>
+            <TextBlock Grid.Row="2"
+                       Margin="0,18,0,0"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource TextMutedBrush}"
+                       Text="设备名称来自当前 Provider 快照；未开放的风扇传感器不会被伪造为 0 RPM。" />
           </Grid>
         </Border>
 
-        <StackPanel Grid.Column="2">
-          <Border Style="{StaticResource CardStyle}" Padding="18" Margin="0,0,0,16">
+        <Grid Grid.Column="2">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="16" />
+            <RowDefinition Height="328" />
+          </Grid.RowDefinitions>
+
+          <Border Style="{StaticResource CardStyle}" Padding="18">
             <Grid>
-              <Grid.RowDefinitions><RowDefinition Height="36" /><RowDefinition Height="34" /><RowDefinition /></Grid.RowDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="36" />
+                <RowDefinition Height="34" />
+                <RowDefinition Height="*" />
+              </Grid.RowDefinitions>
               <TextBlock FontSize="17" FontWeight="SemiBold" Text="传感器读数" />
-              <Grid Grid.Row="1"><Grid.ColumnDefinitions><ColumnDefinition Width="70" /><ColumnDefinition Width="142" /><ColumnDefinition Width="92" /><ColumnDefinition Width="70" /><ColumnDefinition Width="70" /><ColumnDefinition Width="70" /><ColumnDefinition /></Grid.ColumnDefinitions><TextBlock Foreground="{DynamicResource TextMutedBrush}" Text="设备" /><TextBlock Grid.Column="1" Foreground="{DynamicResource TextMutedBrush}" Text="传感器" /><TextBlock Grid.Column="2" Foreground="{DynamicResource TextMutedBrush}" Text="角色" /><TextBlock Grid.Column="3" Foreground="{DynamicResource TextMutedBrush}" Text="当前" /><TextBlock Grid.Column="4" Foreground="{DynamicResource TextMutedBrush}" Text="最小" /><TextBlock Grid.Column="5" Foreground="{DynamicResource TextMutedBrush}" Text="最大" /><TextBlock Grid.Column="6" Foreground="{DynamicResource TextMutedBrush}" Text="平均" /></Grid>
-              <ItemsControl Grid.Row="2" ItemsSource="{Binding SensorReadings}">
+              <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="70" />
+                  <ColumnDefinition Width="142" />
+                  <ColumnDefinition Width="92" />
+                  <ColumnDefinition Width="70" />
+                  <ColumnDefinition Width="70" />
+                  <ColumnDefinition Width="70" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Foreground="{DynamicResource TextMutedBrush}" Text="设备" />
+                <TextBlock Grid.Column="1" Foreground="{DynamicResource TextMutedBrush}" Text="传感器" />
+                <TextBlock Grid.Column="2" Foreground="{DynamicResource TextMutedBrush}" Text="角色" />
+                <TextBlock Grid.Column="3" Foreground="{DynamicResource TextMutedBrush}" Text="当前" />
+                <TextBlock Grid.Column="4" Foreground="{DynamicResource TextMutedBrush}" Text="最小" />
+                <TextBlock Grid.Column="5" Foreground="{DynamicResource TextMutedBrush}" Text="最大" />
+                <TextBlock Grid.Column="6" Foreground="{DynamicResource TextMutedBrush}" Text="平均" />
+              </Grid>
+              <ItemsControl Grid.Row="2" ItemsSource="{Binding TemperatureDetail.SensorReadings}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
-                    <Grid Height="34"><Grid.ColumnDefinitions><ColumnDefinition Width="70" /><ColumnDefinition Width="142" /><ColumnDefinition Width="92" /><ColumnDefinition Width="70" /><ColumnDefinition Width="70" /><ColumnDefinition Width="70" /><ColumnDefinition /></Grid.ColumnDefinitions><TextBlock Text="{Binding Device}" VerticalAlignment="Center" /><TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" /><TextBlock Grid.Column="2" Foreground="{DynamicResource TextSecondaryBrush}" Text="{Binding Role}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" /><TextBlock Grid.Column="3" Text="{Binding Current}" VerticalAlignment="Center" /><TextBlock Grid.Column="4" Text="{Binding Minimum}" VerticalAlignment="Center" /><TextBlock Grid.Column="5" Text="{Binding Maximum}" VerticalAlignment="Center" /><TextBlock Grid.Column="6" Text="{Binding Average}" VerticalAlignment="Center" /></Grid>
+                    <Grid Height="34">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="70" />
+                        <ColumnDefinition Width="142" />
+                        <ColumnDefinition Width="92" />
+                        <ColumnDefinition Width="70" />
+                        <ColumnDefinition Width="70" />
+                        <ColumnDefinition Width="70" />
+                        <ColumnDefinition Width="*" />
+                      </Grid.ColumnDefinitions>
+                      <TextBlock VerticalAlignment="Center" Text="{Binding Device}" />
+                      <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding Name}" />
+                      <TextBlock Grid.Column="2" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" Text="{Binding Role}" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{Binding Current}" />
+                      <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{Binding Minimum}" />
+                      <TextBlock Grid.Column="5" VerticalAlignment="Center" Text="{Binding Maximum}" />
+                      <TextBlock Grid.Column="6" VerticalAlignment="Center" Text="{Binding Average}" />
+                    </Grid>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
             </Grid>
           </Border>
 
-          <Border Height="248" Style="{StaticResource CardStyle}" Padding="18">
+          <Border Grid.Row="2" Style="{StaticResource CardStyle}" Padding="18">
             <Grid>
-              <Grid.RowDefinitions><RowDefinition Height="34" /><RowDefinition /><RowDefinition Height="34" /></Grid.RowDefinitions>
-              <TextBlock FontSize="17" FontWeight="SemiBold" Text="温度趋势（Mock）" />
-              <Grid Grid.Row="1" Margin="4,10,4,0">
-                <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" VerticalAlignment="Center" />
-                <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" VerticalAlignment="Top" />
-                <Polyline Points="0,120 70,105 140,125 210,82 290,96 360,56 440,74 520,38 620,62 710,32" Stroke="{DynamicResource SuccessBrush}" StrokeThickness="3" Stretch="Fill" />
-                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" Foreground="{DynamicResource TextSecondaryBrush}" Text="模拟详情曲线" />
+              <Grid.RowDefinitions>
+                <RowDefinition Height="36" />
+                <RowDefinition Height="30" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="26" />
+              </Grid.RowDefinitions>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock FontSize="17" FontWeight="SemiBold" Text="温度历史趋势" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                  <ToggleButton AutomationProperties.Name="显示 CPU 历史曲线"
+                                Content="CPU"
+                                IsChecked="{Binding TemperatureDetail.IsCpuVisible, Mode=TwoWay}"
+                                Style="{StaticResource ChartLegendToggleStyle}" />
+                  <ToggleButton AutomationProperties.Name="显示 GPU 历史曲线"
+                                Content="GPU"
+                                IsChecked="{Binding TemperatureDetail.IsGpuVisible, Mode=TwoWay}"
+                                Style="{StaticResource ChartLegendToggleStyle}" />
+                  <ToggleButton AutomationProperties.Name="显示存储历史曲线"
+                                Content="存储"
+                                IsChecked="{Binding TemperatureDetail.IsStorageVisible, Mode=TwoWay}"
+                                Style="{StaticResource ChartLegendToggleStyle}" />
+                </StackPanel>
               </Grid>
-              <TextBlock Grid.Row="2" Foreground="{DynamicResource TextMutedBrush}" Text="原始标识符会随传感器选择显示；未开放的风扇传感器不会伪造 0 RPM。" />
+              <TextBlock Grid.Row="1" Foreground="{DynamicResource TextSecondaryBrush}" Text="历史保存在内存的有界窗口中；切换范围只查询快照，不会触发硬件采样。" />
+              <Grid Grid.Row="2" Margin="0,5,0,2">
+                <lvc:CartesianChart Series="{Binding TemperatureDetail.HistorySeries}"
+                                    XAxes="{Binding TemperatureDetail.HistoryXAxes}"
+                                    YAxes="{Binding TemperatureDetail.HistoryYAxes}"
+                                    Background="Transparent"
+                                    LegendPosition="Hidden"
+                                    ZoomMode="X" />
+                <Border Padding="18"
+                        Background="{DynamicResource SurfaceBrush}"
+                        CornerRadius="8"
+                        Opacity="0.96"
+                        Visibility="{Binding TemperatureDetail.IsHistoryLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
+                  <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock HorizontalAlignment="Center" FontSize="16" FontWeight="SemiBold" Text="正在加载温度历史…" />
+                    <TextBlock Margin="0,6,0,0" Foreground="{DynamicResource TextSecondaryBrush}" Text="数据读取完成后将自动显示曲线。" />
+                  </StackPanel>
+                </Border>
+                <Border Padding="18"
+                        Background="{DynamicResource SurfaceBrush}"
+                        CornerRadius="8"
+                        Opacity="0.96"
+                        Visibility="{Binding TemperatureDetail.IsHistoryEmpty, Converter={StaticResource BooleanToVisibilityConverter}}">
+                  <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock HorizontalAlignment="Center" FontSize="16" FontWeight="SemiBold" Text="当前时间范围没有历史数据" />
+                    <TextBlock Margin="0,6,0,0" Foreground="{DynamicResource TextSecondaryBrush}" Text="请等待至少一次采样完成，或缩短时间范围后重试。" />
+                  </StackPanel>
+                </Border>
+                <Border Padding="18"
+                        Background="{DynamicResource SurfaceBrush}"
+                        CornerRadius="8"
+                        Opacity="0.96"
+                        Visibility="{Binding TemperatureDetail.HasHistoryError, Converter={StaticResource BooleanToVisibilityConverter}}">
+                  <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock HorizontalAlignment="Center" FontSize="16" FontWeight="SemiBold" Text="温度历史暂不可用" />
+                    <Button Margin="0,12,0,0"
+                            AutomationProperties.Name="重试读取温度历史"
+                            Command="{Binding RefreshDetailsCommand}"
+                            Content="重试"
+                            Style="{StaticResource SecondaryButtonStyle}" />
+                  </StackPanel>
+                </Border>
+              </Grid>
+              <TextBlock Grid.Row="3" Foreground="{DynamicResource TextMutedBrush}" Text="仅显示 CPU、GPU 与存储温度；缺失设备不会用推测值填充。" />
             </Grid>
           </Border>
-        </StackPanel>
+        </Grid>
       </Grid>
-    </StackPanel>
+    </Grid>
   </ScrollViewer>
 </UserControl>

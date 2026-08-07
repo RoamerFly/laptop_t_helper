@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -8,6 +9,8 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using LaptopThermalHelper.App.Services;
 using LaptopThermalHelper.App.ViewModels;
+using LaptopThermalHelper.Application.Monitoring;
+using LaptopThermalHelper.Core.Domain;
 using Serilog;
 
 namespace LaptopThermalHelper.App;
@@ -23,19 +26,31 @@ public partial class MainWindow : Window
     private const double InitialWorkAreaRatio = 0.94;
     private readonly ShellViewModel _viewModel;
     private readonly ThemeService _themeService;
+    private readonly ITrayIconService _trayIconService;
     private readonly DispatcherTimer _sampleTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     private bool _initialBoundsApplied;
+    private bool _isExitApproved;
+    private bool _isShutdownInProgress;
 
-    public MainWindow(ShellViewModel viewModel, ThemeService themeService)
+    public MainWindow(
+        ShellViewModel viewModel,
+        ThemeService themeService,
+        ITrayIconService trayIconService)
     {
         InitializeComponent();
         _viewModel = viewModel;
         _themeService = themeService;
+        _trayIconService = trayIconService;
         DataContext = viewModel;
         UpdateThemeButton();
         Loaded += MainWindow_Loaded;
         Closed += MainWindow_Closed;
+        Closing += MainWindow_Closing;
+        StateChanged += MainWindow_StateChanged;
         _sampleTimer.Tick += SampleTimer_Tick;
+        _viewModel.SamplingIntervalChanged += ViewModel_SamplingIntervalChanged;
+        _trayIconService.ShowRequested += TrayIconService_ShowRequested;
+        _trayIconService.ExitRequested += TrayIconService_ExitRequested;
     }
 
     protected override void OnSourceInitialized(EventArgs e)
@@ -48,11 +63,22 @@ public partial class MainWindow : Window
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
+        await _viewModel.InitializeSystemIntegrationAsync();
+        _trayIconService.Initialize();
+        Task systemInformationLoad = _viewModel.LoadSystemInformationAsync();
         await RefreshSafelyAsync();
+        await systemInformationLoad;
         _sampleTimer.Start();
     }
 
-    private void MainWindow_Closed(object? sender, EventArgs e) => _sampleTimer.Stop();
+    private void MainWindow_Closed(object? sender, EventArgs e)
+    {
+        _sampleTimer.Stop();
+        _viewModel.SamplingIntervalChanged -= ViewModel_SamplingIntervalChanged;
+        _trayIconService.ShowRequested -= TrayIconService_ShowRequested;
+        _trayIconService.ExitRequested -= TrayIconService_ExitRequested;
+        _trayIconService.Dispose();
+    }
 
     private async void SampleTimer_Tick(object? sender, EventArgs e) => await RefreshSafelyAsync();
 
@@ -61,6 +87,9 @@ public partial class MainWindow : Window
         try
         {
             await _viewModel.Dashboard.RefreshAsync();
+            await _viewModel.ObserveSystemIntegrationAsync(_viewModel.Dashboard.LastSnapshot);
+            _trayIconService.UpdateStatus(CreateTrayStatus(_viewModel.Dashboard.LastSnapshot));
+            _viewModel.TemperatureDetail.RefreshAfterSampling();
         }
         catch (Exception exception)
         {
@@ -144,6 +173,86 @@ public partial class MainWindow : Window
     }
 
     private void UpdateThemeButton() => ThemeButton.Content = _themeService.IsDark ? "☾  深色" : "☀  浅色";
+
+    private void ViewModel_SamplingIntervalChanged(object? sender, int seconds) =>
+        _sampleTimer.Interval = TimeSpan.FromSeconds(seconds);
+
+    private void MainWindow_StateChanged(object? sender, EventArgs e)
+    {
+        if (WindowState == WindowState.Minimized && _viewModel.MinimizeToTray)
+        {
+            HideToTray("窗口已最小化到通知区域。双击托盘图标可重新显示。");
+        }
+    }
+
+    private async void MainWindow_Closing(object? sender, CancelEventArgs e)
+    {
+        if (_isExitApproved || _isShutdownInProgress)
+        {
+            return;
+        }
+
+        e.Cancel = true;
+        if (_viewModel.MinimizeToTray)
+        {
+            HideToTray("应用仍在通知区域运行。请从托盘菜单选择“退出”以结束监控。");
+            return;
+        }
+
+        await ExitApplicationAsync();
+    }
+
+    private void TrayIconService_ShowRequested(object? sender, EventArgs e)
+    {
+        Show();
+        WindowState = WindowState.Normal;
+        Activate();
+    }
+
+    private async void TrayIconService_ExitRequested(object? sender, EventArgs e) => await ExitApplicationAsync();
+
+    private async Task ExitApplicationAsync()
+    {
+        if (_isShutdownInProgress || _isExitApproved)
+        {
+            return;
+        }
+
+        _isShutdownInProgress = true;
+        try
+        {
+            using var shutdownCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            await _viewModel.ShutdownSystemIntegrationAsync(shutdownCancellation.Token);
+        }
+        catch (Exception exception)
+        {
+            Log.Error(exception, "退出时恢复安全自动降温设置失败");
+        }
+        finally
+        {
+            _isExitApproved = true;
+            _trayIconService.Dispose();
+            // Closing can be raised by a user close request. Queue the final Close so
+            // this handler has returned before WPF begins the approved close cycle.
+            // Calling Close synchronously here causes VerifyNotClosing to throw when
+            // shutdown work happens to complete synchronously.
+            _ = Dispatcher.BeginInvoke(Close, DispatcherPriority.Background);
+        }
+    }
+
+    private void HideToTray(string message)
+    {
+        Hide();
+        _trayIconService.ShowNotification("笔记本温控助手", message, false);
+    }
+
+    private static TrayStatus CreateTrayStatus(MonitoringSnapshot snapshot)
+    {
+        double? cpu = snapshot.Devices.FirstOrDefault(static item => item.Device.Kind == DeviceKind.Cpu)?.Device.Temperature;
+        double? gpu = snapshot.Devices.FirstOrDefault(static item => item.Device.Kind == DeviceKind.Gpu)?.Device.Temperature;
+        double? storage = snapshot.Devices.FirstOrDefault(static item => item.Device.Kind == DeviceKind.Storage)?.Device.Temperature;
+        return new TrayStatus(snapshot.SystemLevel, cpu, gpu, storage);
+    }
 
     private void MinimizeButton_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
 

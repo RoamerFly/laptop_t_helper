@@ -12,11 +12,18 @@ public sealed record TemperatureThresholds(
     double RecoveryHysteresis,
     TimeSpan RecoveryDelay)
 {
-    public static TemperatureThresholds CpuDefault { get; } = Create(75, 90, 95);
+    // Conservative, generic laptop defaults rather than a claim about any one
+    // processor's Tjunction/TjMax. OEM limits and thermal policies vary by
+    // exact model; callers must treat these as monitoring guidance only.
+    public static TemperatureThresholds CpuDefault { get; } = Create(85, 95, 100);
 
-    public static TemperatureThresholds GpuDefault { get; } = Create(70, 82, 86);
+    public static TemperatureThresholds GpuDefault { get; } = Create(80, 87, 92);
 
-    public static TemperatureThresholds StorageDefault { get; } = Create(55, 70, 75);
+    // NVMe/SATA operating specifications commonly use 70°C as the upper
+    // operating range. A confirmed 75°C Composite/current sensor reading is
+    // therefore "high", while critical stays intentionally below any claimed
+    // vendor shutdown or warranty limit.
+    public static TemperatureThresholds StorageDefault { get; } = Create(60, 70, 80);
 
     public static TemperatureThresholds For(DeviceKind kind) => kind switch
     {
@@ -40,13 +47,21 @@ public sealed record TemperatureThresholds(
         }
     }
 
-    public ThermalLevel Classify(double temperature) => temperature switch
+    public ThermalLevel Classify(double temperature)
     {
-        _ when temperature >= CriticalAt => ThermalLevel.Critical,
-        _ when temperature >= HighAt => ThermalLevel.High,
-        _ when temperature >= ElevatedAt => ThermalLevel.Elevated,
-        _ => ThermalLevel.Normal,
-    };
+        if (double.IsNaN(temperature) || double.IsInfinity(temperature))
+        {
+            return ThermalLevel.Unknown;
+        }
+
+        return temperature switch
+        {
+            _ when temperature >= CriticalAt => ThermalLevel.Critical,
+            _ when temperature >= HighAt => ThermalLevel.High,
+            _ when temperature >= ElevatedAt => ThermalLevel.Elevated,
+            _ => ThermalLevel.Normal,
+        };
+    }
 
     public double LowerBound(ThermalLevel level) => level switch
     {

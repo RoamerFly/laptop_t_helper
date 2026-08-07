@@ -13,21 +13,31 @@ public sealed class MonitoringCoordinator : IDisposable
     private static readonly TimeSpan HistoryWriteInterval = TimeSpan.FromSeconds(5);
     private readonly IHardwareMonitorProvider _provider;
     private readonly ITemperatureHistoryStore _historyStore;
+    private readonly ITemperatureHistoryBuffer _historyBuffer;
     private readonly Dictionary<string, DeviceState> _states = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _pollLock = new(1, 1);
     private DateTimeOffset? _nextHistoryWriteAt;
 
     public MonitoringCoordinator(IHardwareMonitorProvider provider)
-        : this(provider, NullTemperatureHistoryStore.Instance)
+        : this(provider, NullTemperatureHistoryStore.Instance, new RollingTemperatureHistoryBuffer())
     {
     }
 
     public MonitoringCoordinator(
         IHardwareMonitorProvider provider,
         ITemperatureHistoryStore historyStore)
+        : this(provider, historyStore, new RollingTemperatureHistoryBuffer())
     {
-        _provider = provider;
-        _historyStore = historyStore;
+    }
+
+    public MonitoringCoordinator(
+        IHardwareMonitorProvider provider,
+        ITemperatureHistoryStore historyStore,
+        ITemperatureHistoryBuffer historyBuffer)
+    {
+        _provider = provider ?? throw new ArgumentNullException(nameof(provider));
+        _historyStore = historyStore ?? throw new ArgumentNullException(nameof(historyStore));
+        _historyBuffer = historyBuffer ?? throw new ArgumentNullException(nameof(historyBuffer));
     }
 
     public Exception? LastHistoryWriteError { get; private set; }
@@ -42,25 +52,44 @@ public sealed class MonitoringCoordinator : IDisposable
         await _pollLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            IReadOnlyList<DeviceSample> samples = await _provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            HardwareProviderMode mode = GetProviderMode();
+            IReadOnlyList<DeviceSample> samples;
+            try
+            {
+                samples = await _provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                return new MonitoringSnapshot(
+                    [],
+                    ThermalLevel.Unknown,
+                    DateTimeOffset.UtcNow,
+                    MonitoringAcquisitionStatus.Error(mode, ToSafeMessage(exception)));
+            }
+
             var devices = new List<MonitoredDeviceSnapshot>(samples.Count);
 
             foreach (DeviceSample sample in samples)
             {
                 DeviceState state = GetOrCreateState(sample);
-                ThermalLevel level = state.StateMachine.Observe(sample.Temperature, sample.Timestamp);
-                state.Statistics.Add(sample.Temperature);
+                double? temperature = NormalizeTemperature(sample.Temperature);
+                ThermalLevel level = state.StateMachine.Observe(temperature, sample.Timestamp);
+                state.Statistics.Add(temperature);
 
-                if (sample.Temperature is double temperature && IsFinite(temperature))
+                if (temperature is double validTemperature)
                 {
-                    state.Trend.Add(new TemperaturePoint(sample.Timestamp, temperature));
+                    state.Trend.Add(new TemperaturePoint(sample.Timestamp, validTemperature));
                 }
 
                 var deviceSnapshot = new DeviceSnapshot(
                     sample.DeviceId,
                     sample.Kind,
                     sample.DisplayName,
-                    sample.Temperature,
+                    temperature,
                     sample.Load,
                     sample.Power,
                     sample.FanRpm,
@@ -71,7 +100,19 @@ public sealed class MonitoringCoordinator : IDisposable
                     deviceSnapshot,
                     state.Statistics.Maximum,
                     state.Statistics.Average,
-                    state.Trend));
+                    state.Trend)
+                {
+                    TemperatureSensors = sample.TemperatureSensors
+                        .Where(static sensor =>
+                            sensor.Metric == SensorMetric.Temperature &&
+                            sensor.Quality == ReadingQuality.Good &&
+                            sensor.Value is double value &&
+                            IsFinite(value))
+                        .ToArray(),
+                    PrimaryTemperatureSensorName = temperature is null
+                        ? null
+                        : sample.PrimaryTemperatureSensorName,
+                });
             }
 
             ThermalLevel systemLevel = AggregateSystemLevel(devices);
@@ -79,7 +120,9 @@ public sealed class MonitoringCoordinator : IDisposable
                 ? DateTimeOffset.UtcNow
                 : samples.Max(static sample => sample.Timestamp);
 
-            var snapshot = new MonitoringSnapshot(devices, systemLevel, timestamp);
+            MonitoringAcquisitionStatus status = CreateAcquisitionStatus(mode, devices);
+            var snapshot = new MonitoringSnapshot(devices, systemLevel, timestamp, status);
+            _historyBuffer.Append(snapshot);
             await RecordHistoryIfDueAsync(snapshot, cancellationToken).ConfigureAwait(false);
             return snapshot;
         }
@@ -104,6 +147,33 @@ public sealed class MonitoringCoordinator : IDisposable
         return state;
     }
 
+    private HardwareProviderMode GetProviderMode() =>
+        _provider is IHardwareMonitorProviderMetadata metadata
+            ? metadata.Mode
+            : HardwareProviderMode.RealHardware;
+
+    private static MonitoringAcquisitionStatus CreateAcquisitionStatus(
+        HardwareProviderMode mode,
+        IReadOnlyList<MonitoredDeviceSnapshot> devices)
+    {
+        if (mode == HardwareProviderMode.Mock)
+        {
+            return MonitoringAcquisitionStatus.Ready(mode);
+        }
+
+        bool hasTemperature = devices.Any(static device =>
+            device.Device.Kind is DeviceKind.Cpu or DeviceKind.Gpu or DeviceKind.Storage &&
+            device.Device.Temperature is double temperature && IsFinite(temperature));
+        return hasTemperature
+            ? MonitoringAcquisitionStatus.Ready(mode)
+            : MonitoringAcquisitionStatus.Unavailable();
+    }
+
+    private static string ToSafeMessage(Exception exception) =>
+        exception is UnauthorizedAccessException
+            ? "无法读取真实硬件传感器：访问被拒绝。"
+            : "无法读取真实硬件传感器。请检查驱动、权限或硬件支持。";
+
     private static ThermalLevel AggregateSystemLevel(IEnumerable<MonitoredDeviceSnapshot> devices)
     {
         ThermalLevel[] validLevels = devices
@@ -116,6 +186,11 @@ public sealed class MonitoringCoordinator : IDisposable
     }
 
     private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
+
+    private static double? NormalizeTemperature(double? temperature) =>
+        temperature is double value && IsFinite(value) && value is >= -20 and <= 150
+            ? value
+            : null;
 
     private async Task RecordHistoryIfDueAsync(
         MonitoringSnapshot snapshot,

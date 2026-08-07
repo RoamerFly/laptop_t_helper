@@ -12,9 +12,9 @@ public sealed class ThermalStateMachineTests
     {
         var machine = CreateNormalCpuMachine();
 
-        Assert.Equal(ThermalLevel.Normal, machine.Observe(80, Start.AddSeconds(1)));
-        Assert.Equal(ThermalLevel.Normal, machine.Observe(80, Start.AddSeconds(20)));
-        Assert.Equal(ThermalLevel.Elevated, machine.Observe(80, Start.AddSeconds(21)));
+        Assert.Equal(ThermalLevel.Normal, machine.Observe(86, Start.AddSeconds(1)));
+        Assert.Equal(ThermalLevel.Normal, machine.Observe(86, Start.AddSeconds(20)));
+        Assert.Equal(ThermalLevel.Elevated, machine.Observe(86, Start.AddSeconds(21)));
     }
 
     [Fact]
@@ -22,8 +22,8 @@ public sealed class ThermalStateMachineTests
     {
         var machine = CreateNormalCpuMachine();
 
-        Assert.Equal(ThermalLevel.Normal, machine.Observe(98, Start.AddSeconds(1)));
-        Assert.Equal(ThermalLevel.Critical, machine.Observe(98, Start.AddSeconds(11)));
+        Assert.Equal(ThermalLevel.Normal, machine.Observe(101, Start.AddSeconds(1)));
+        Assert.Equal(ThermalLevel.Critical, machine.Observe(101, Start.AddSeconds(11)));
     }
 
     [Fact]
@@ -31,32 +31,32 @@ public sealed class ThermalStateMachineTests
     {
         var machine = CreateNormalCpuMachine();
 
-        machine.Observe(92, Start.AddSeconds(1));
+        machine.Observe(96, Start.AddSeconds(1));
         machine.Observe(70, Start.AddSeconds(10));
 
-        Assert.Equal(ThermalLevel.Normal, machine.Observe(92, Start.AddSeconds(25)));
+        Assert.Equal(ThermalLevel.Normal, machine.Observe(96, Start.AddSeconds(25)));
     }
 
     [Fact]
     public void Observe_Recovery_RequiresThreeDegreeHysteresisAndThirtySeconds()
     {
         var machine = CreateNormalCpuMachine();
-        machine.Observe(92, Start.AddSeconds(1));
-        machine.Observe(92, Start.AddSeconds(21));
+        machine.Observe(96, Start.AddSeconds(1));
+        machine.Observe(96, Start.AddSeconds(21));
         Assert.Equal(ThermalLevel.High, machine.CurrentLevel);
 
-        Assert.Equal(ThermalLevel.High, machine.Observe(87.5, Start.AddSeconds(22)));
-        Assert.Equal(ThermalLevel.High, machine.Observe(86, Start.AddSeconds(23)));
-        Assert.Equal(ThermalLevel.High, machine.Observe(86, Start.AddSeconds(52)));
-        Assert.Equal(ThermalLevel.Elevated, machine.Observe(86, Start.AddSeconds(53)));
+        Assert.Equal(ThermalLevel.High, machine.Observe(92, Start.AddSeconds(22)));
+        Assert.Equal(ThermalLevel.High, machine.Observe(91, Start.AddSeconds(23)));
+        Assert.Equal(ThermalLevel.High, machine.Observe(91, Start.AddSeconds(52)));
+        Assert.Equal(ThermalLevel.Elevated, machine.Observe(91, Start.AddSeconds(53)));
     }
 
     [Fact]
     public void Observe_CriticalRecovery_OnlyDropsOneLevel()
     {
         var machine = CreateNormalCpuMachine();
-        machine.Observe(98, Start.AddSeconds(1));
-        machine.Observe(98, Start.AddSeconds(11));
+        machine.Observe(101, Start.AddSeconds(1));
+        machine.Observe(101, Start.AddSeconds(11));
 
         machine.Observe(60, Start.AddSeconds(12));
         ThermalLevel level = machine.Observe(60, Start.AddSeconds(42));

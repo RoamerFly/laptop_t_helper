@@ -6,7 +6,7 @@
   <UserControl.Resources>
     <converters:ThermalLevelToBrushConverter x:Key="LevelBrushConverter" />
   </UserControl.Resources>
-  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+  <ScrollViewer VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
     <StackPanel Margin="18,16,22,24">
       <Grid Margin="0,0,0,16">
         <Grid.ColumnDefinitions>
@@ -28,7 +28,7 @@
             </StackPanel>
           </Grid>
         </Border>
-        <Button Grid.Column="1" AutomationProperties.Name="打开性能模式" Margin="16,0,0,0" Command="{Binding NavigateCommand}" CommandParameter="performance" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="0">
+        <Button Grid.Column="1" AutomationProperties.Name="打开性能模式" Margin="16,0,0,0" Command="{Binding NavigateCommand}" CommandParameter="performance" Style="{StaticResource ModeSummaryButtonStyle}">
           <Grid Margin="16,0">
             <Grid.ColumnDefinitions><ColumnDefinition Width="48" /><ColumnDefinition /><ColumnDefinition Width="18" /></Grid.ColumnDefinitions>
             <Border Width="42" Height="42" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="21">

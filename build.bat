@@ -8,7 +8,15 @@ set "APP_PROJECT=src\LaptopThermalHelper.App\LaptopThermalHelper.App.csproj"
 set "SOLUTION=LaptopThermalHelper.sln"
 set "OUTPUT_DIR=%CD%\dist_windows"
 
-echo [1/6] Checking .NET 10 SDK...
+echo [1/7] Checking publish preflight...
+set "PROCESS_FILE=%TEMP%\laptop-thermal-helper-process-%RANDOM%-%RANDOM%.tmp"
+tasklist /fi "IMAGENAME eq LaptopThermalHelper.App.exe" /fo csv /nh >"%PROCESS_FILE%" 2>nul
+if errorlevel 1 goto process_detection_failed
+findstr /i /l /c:"LaptopThermalHelper.App.exe" "%PROCESS_FILE%" >nul
+if not errorlevel 1 goto app_running
+del /q "%PROCESS_FILE%" >nul 2>nul
+
+echo [2/7] Checking .NET 10 SDK...
 set "REQUESTED_DOTNET=%DOTNET_EXE%"
 set "DOTNET_EXE="
 set "SDK_VERSION="
@@ -24,7 +32,7 @@ call :try_dotnet "%LocalAppData%\Microsoft\dotnet\dotnet.exe"
 if not defined DOTNET_EXE goto dotnet_missing
 echo Using .NET SDK %SDK_VERSION%.
 
-echo [2/6] Checking LibreHardwareMonitor submodule...
+echo [3/7] Checking LibreHardwareMonitor submodule...
 if exist "LibreHardwareMonitor\LibreHardwareMonitorLib\LibreHardwareMonitorLib.csproj" goto restore
 where git >nul 2>nul
 if errorlevel 1 (
@@ -35,22 +43,17 @@ git submodule update --init --recursive
 if errorlevel 1 goto command_failed
 
 :restore
-echo [3/6] Restoring dependencies...
+echo [4/7] Restoring dependencies...
 "%DOTNET_EXE%" restore "%SOLUTION%" --disable-parallel -m:1
 if errorlevel 1 goto command_failed
 
-echo [4/6] Building and testing Release configuration...
+echo [5/7] Building and testing Release configuration...
 "%DOTNET_EXE%" build "%SOLUTION%" --configuration Release --no-restore -m:1
 if errorlevel 1 goto command_failed
 "%DOTNET_EXE%" test "%SOLUTION%" --configuration Release --no-build -m:1
 if errorlevel 1 goto command_failed
 
-echo [5/6] Preparing output directory...
-set "PROCESS_FILE=%TEMP%\laptop-thermal-helper-process-%RANDOM%-%RANDOM%.tmp"
-tasklist /fi "IMAGENAME eq LaptopThermalHelper.App.exe" /fo csv /nh >"%PROCESS_FILE%" 2>nul
-findstr /i /l /c:"LaptopThermalHelper.App.exe" "%PROCESS_FILE%" >nul
-if not errorlevel 1 goto app_running
-del /q "%PROCESS_FILE%" >nul 2>nul
+echo [6/7] Preparing output directory...
 if exist "%OUTPUT_DIR%" rmdir /s /q "%OUTPUT_DIR%"
 if exist "%OUTPUT_DIR%" (
     echo ERROR: Unable to clean "%OUTPUT_DIR%".
@@ -59,7 +62,7 @@ if exist "%OUTPUT_DIR%" (
 mkdir "%OUTPUT_DIR%"
 if errorlevel 1 goto command_failed
 
-echo [6/6] Publishing self-contained Windows x64 application...
+echo [7/7] Publishing self-contained Windows x64 application...
 "%DOTNET_EXE%" publish "%APP_PROJECT%" --configuration Release --runtime win-x64 --self-contained true --no-restore -p:Platform=x64 --output "%OUTPUT_DIR%"
 if errorlevel 1 goto command_failed
 
@@ -75,10 +78,10 @@ echo.
 echo Build succeeded.
 echo Executable: "%OUTPUT_DIR%\LaptopThermalHelper.App.exe"
 echo.
-echo Run with simulated data:
+echo Run with real hardware sensors (default):
 echo   "%OUTPUT_DIR%\LaptopThermalHelper.App.exe"
-echo Run with real hardware sensors:
-echo   "%OUTPUT_DIR%\LaptopThermalHelper.App.exe" --real-hardware
+echo Run with simulated data:
+echo   "%OUTPUT_DIR%\LaptopThermalHelper.App.exe" --mock
 exit /b 0
 
 :command_failed
@@ -87,7 +90,6 @@ echo ERROR: A build command failed with exit code %ERRORLEVEL%.
 
 :failed
 echo Build failed.
-pause
 exit /b 1
 
 :dotnet_missing
@@ -97,8 +99,18 @@ goto failed
 
 :app_running
 if exist "%PROCESS_FILE%" del /q "%PROCESS_FILE%" >nul 2>nul
-echo ERROR: LaptopThermalHelper.App.exe is currently running.
-echo Close the application, then run build.bat again.
+echo.
+echo PUBLISH PREFLIGHT FAILED: LaptopThermalHelper.App.exe is still running.
+echo Close the old instance from the system tray: right-click the app icon and choose "退出 (Exit)".
+echo Alternatively, use Task Manager only to end your own old instance.
+echo The build stopped before changing "%OUTPUT_DIR%". No process was terminated.
+goto failed
+
+:process_detection_failed
+if exist "%PROCESS_FILE%" del /q "%PROCESS_FILE%" >nul 2>nul
+echo.
+echo PUBLISH PREFLIGHT FAILED: Unable to safely check whether LaptopThermalHelper.App.exe is running.
+echo The build stopped before changing "%OUTPUT_DIR%". No process was terminated.
 goto failed
 
 :try_dotnet

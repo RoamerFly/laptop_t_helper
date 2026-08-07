@@ -46,8 +46,8 @@
       <views:AboutPage DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}" />
     </DataTemplate>
     <Style x:Key="NavigationListItemStyle" TargetType="ListBoxItem">
-      <Setter Property="Height" Value="48" />
-      <Setter Property="Margin" Value="14,3" />
+      <Setter Property="Height" Value="44" />
+      <Setter Property="Margin" Value="14,2" />
       <Setter Property="Padding" Value="14,0" />
       <Setter Property="HorizontalContentAlignment" Value="Stretch" />
       <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
@@ -55,17 +55,22 @@
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="ListBoxItem">
-            <Border x:Name="Root" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="9" Padding="{TemplateBinding Padding}">
+            <Border x:Name="Root" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="9" Padding="{TemplateBinding Padding}" RenderTransformOrigin="0.5,0.5">
+              <Border.RenderTransform><ScaleTransform /></Border.RenderTransform>
               <ContentPresenter VerticalAlignment="Center" />
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
                 <Setter TargetName="Root" Property="Background" Value="{DynamicResource SurfaceAltBrush}" />
+                <Setter TargetName="Root" Property="Opacity" Value="0.96" />
+                <Trigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="Root" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" To="1.006" Duration="0:0:0.08" /><DoubleAnimation Storyboard.TargetName="Root" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" To="1.006" Duration="0:0:0.08" /></Storyboard></BeginStoryboard></Trigger.EnterActions>
+                <Trigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="Root" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" To="1" Duration="0:0:0.08" /><DoubleAnimation Storyboard.TargetName="Root" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" To="1" Duration="0:0:0.08" /></Storyboard></BeginStoryboard></Trigger.ExitActions>
               </Trigger>
               <Trigger Property="IsSelected" Value="True">
                 <Setter TargetName="Root" Property="Background" Value="{DynamicResource AccentSoftBrush}" />
                 <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                 <Setter Property="Foreground" Value="{DynamicResource BlueBrush}" />
+                <Trigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimationUsingKeyFrames Storyboard.TargetName="Root" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"><EasingDoubleKeyFrame KeyTime="0:0:0" Value="0.988" /><EasingDoubleKeyFrame KeyTime="0:0:0.10" Value="1" /></DoubleAnimationUsingKeyFrames><DoubleAnimationUsingKeyFrames Storyboard.TargetName="Root" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"><EasingDoubleKeyFrame KeyTime="0:0:0" Value="0.988" /><EasingDoubleKeyFrame KeyTime="0:0:0.10" Value="1" /></DoubleAnimationUsingKeyFrames></Storyboard></BeginStoryboard></Trigger.EnterActions>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -84,19 +89,80 @@
       <ColumnDefinition Width="*" />
     </Grid.ColumnDefinitions>
 
-    <Grid Grid.Row="0"
-          Grid.Column="0"
-          Background="{DynamicResource SidebarBackgroundBrush}"
-          MouseLeftButtonDown="DragArea_MouseLeftButtonDown">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="48" />
-        <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="50" />
-      </Grid.ColumnDefinitions>
-      <Image Grid.Column="0" Width="30" Height="30" Margin="14,0,4,0" Source="/Assets/icon.png" Stretch="Uniform" />
-      <TextBlock Grid.Column="1" FontSize="16" FontWeight="SemiBold" Text="笔记本温控助手" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-      <TextBlock Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Text="v0.1.0" />
-    </Grid>
+    <Border Grid.Row="0"
+            Grid.RowSpan="2"
+            Grid.Column="0"
+            Background="{DynamicResource SidebarBackgroundBrush}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="0,0,1,0"
+            MouseLeftButtonDown="DragArea_MouseLeftButtonDown">
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="160" />
+          <RowDefinition Height="*" />
+          <RowDefinition Height="190" />
+        </Grid.RowDefinitions>
+        <Grid Grid.Row="0"
+              Margin="14,14,14,8"
+              AutomationProperties.Name="笔记本控温助手品牌">
+          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Image Width="80"
+                   Height="80"
+                   HorizontalAlignment="Center"
+                   AutomationProperties.Name="笔记本控温助手图标"
+                   Source="/Assets/icon.png"
+                   Stretch="Uniform" />
+            <TextBlock Margin="0,8,0,0"
+                       HorizontalAlignment="Center"
+                       FontSize="17"
+                       FontWeight="SemiBold"
+                       Text="笔记本控温助手" />
+            <TextBlock Margin="0,2,0,0"
+                       HorizontalAlignment="Center"
+                       FontSize="11"
+                       Foreground="{DynamicResource TextMutedBrush}"
+                       Text="温度与电源策略" />
+          </StackPanel>
+        </Grid>
+        <ListBox Grid.Row="1"
+                 ItemsSource="{Binding NavigationItems}"
+                 SelectedItem="{Binding SelectedNavigation, Mode=TwoWay}"
+                 Padding="0,2,0,2"
+                 BorderThickness="0"
+                 Background="Transparent"
+                 ScrollViewer.VerticalScrollBarVisibility="Hidden"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                 ItemContainerStyle="{StaticResource NavigationListItemStyle}">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Width="32" FontFamily="Segoe Fluent Icons" FontSize="19" Text="{Binding Icon}" VerticalAlignment="Center" />
+                <TextBlock FontSize="15" Text="{Binding Title}" VerticalAlignment="Center" />
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <Border Grid.Row="2" Margin="14,0,14,14" Style="{StaticResource CardStyle}" Padding="14">
+          <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="28" />
+              <RowDefinition Height="34" />
+              <RowDefinition Height="1" />
+              <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <TextBlock FontWeight="SemiBold" Foreground="{DynamicResource SuccessBrush}" Text="自动降温" VerticalAlignment="Center" />
+            <ToggleButton AutomationProperties.Name="启用自动降温" HorizontalAlignment="Right" IsChecked="{Binding IsAutoCoolingEnabled, Mode=TwoWay}" Style="{StaticResource SwitchStyle}" />
+            <TextBlock Grid.Row="1" Foreground="{DynamicResource TextSecondaryBrush}" Text="{Binding CoolingPolicy, StringFormat=策略：{0}}" VerticalAlignment="Center" />
+            <Button Grid.Row="1" AutomationProperties.Name="打开自动降温设置" HorizontalAlignment="Right" Command="{Binding NavigateCommand}" CommandParameter="performance" Foreground="{DynamicResource BlueBrush}" Background="Transparent" BorderThickness="0" Content="设置" />
+            <Border Grid.Row="2" Background="{DynamicResource DividerBrush}" />
+            <StackPanel Grid.Row="3" Margin="0,8,0,0">
+              <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" Text="{Binding AutoCoolingStatus}" />
+              <TextBlock Margin="0,12,0,0" Foreground="{DynamicResource TextMutedBrush}" Text="{Binding Dashboard.RuntimeText, StringFormat=已运行： {0}}" />
+            </StackPanel>
+          </Grid>
+        </Border>
+      </Grid>
+    </Border>
 
     <Grid Grid.Row="0"
           Grid.Column="1"
@@ -134,48 +200,6 @@
       </StackPanel>
     </Grid>
 
-    <Border Grid.Row="1" Grid.Column="0" Background="{DynamicResource SidebarBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,1,0">
-      <Grid>
-        <Grid.RowDefinitions>
-          <RowDefinition Height="*" />
-          <RowDefinition Height="214" />
-        </Grid.RowDefinitions>
-        <ListBox ItemsSource="{Binding NavigationItems}"
-                 SelectedItem="{Binding SelectedNavigation, Mode=TwoWay}"
-                 BorderThickness="0"
-                 Background="Transparent"
-                 ItemContainerStyle="{StaticResource NavigationListItemStyle}">
-          <ListBox.ItemTemplate>
-            <DataTemplate>
-              <StackPanel Orientation="Horizontal">
-                <TextBlock Width="32" FontFamily="Segoe Fluent Icons" FontSize="19" Text="{Binding Icon}" VerticalAlignment="Center" />
-                <TextBlock FontSize="15" Text="{Binding Title}" VerticalAlignment="Center" />
-              </StackPanel>
-            </DataTemplate>
-          </ListBox.ItemTemplate>
-        </ListBox>
-        <Border Grid.Row="1" Margin="14,0,14,16" Style="{StaticResource CardStyle}" Padding="14">
-          <Grid>
-            <Grid.RowDefinitions>
-              <RowDefinition Height="34" />
-              <RowDefinition Height="34" />
-              <RowDefinition Height="1" />
-              <RowDefinition Height="*" />
-            </Grid.RowDefinitions>
-            <TextBlock FontWeight="SemiBold" Foreground="{DynamicResource SuccessBrush}" Text="自动降温" VerticalAlignment="Center" />
-            <ToggleButton AutomationProperties.Name="启用自动降温演示" HorizontalAlignment="Right" IsChecked="{Binding IsAutoCoolingEnabled, Mode=TwoWay}" Style="{StaticResource SwitchStyle}" />
-            <TextBlock Grid.Row="1" Foreground="{DynamicResource TextSecondaryBrush}" Text="{Binding CoolingPolicy, StringFormat=策略：{0}}" VerticalAlignment="Center" />
-            <Button Grid.Row="1" AutomationProperties.Name="打开自动降温设置" HorizontalAlignment="Right" Command="{Binding NavigateCommand}" CommandParameter="performance" Foreground="{DynamicResource BlueBrush}" Background="Transparent" BorderThickness="0" Content="设置" />
-            <Border Grid.Row="2" Background="{DynamicResource DividerBrush}" />
-            <StackPanel Grid.Row="3" Margin="0,11,0,0">
-              <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" Text="{Binding AutoCoolingStatus}" />
-              <TextBlock Margin="0,12,0,0" Foreground="{DynamicResource TextMutedBrush}" Text="{Binding Dashboard.RuntimeText, StringFormat=已运行： {0}}" />
-            </StackPanel>
-          </Grid>
-        </Border>
-      </Grid>
-    </Border>
-
     <Grid Grid.Row="1" Grid.Column="1">
       <Grid.RowDefinitions>
         <RowDefinition Height="*" />
@@ -184,11 +208,12 @@
       <ContentControl Content="{Binding CurrentPage}" />
       <Border Grid.Row="1" Background="{DynamicResource SidebarBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
         <Grid Margin="22,0">
-          <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>
-          <TextBlock Foreground="{DynamicResource TextMutedBrush}" Text="Windows 11 专业版 64 位" VerticalAlignment="Center" />
-          <TextBlock Grid.Column="1" Foreground="{DynamicResource TextMutedBrush}" Text="Lenovo 拯救者 Y9000P 2021" VerticalAlignment="Center" />
-          <TextBlock Grid.Column="2" Foreground="{DynamicResource TextMutedBrush}" Text="电源模式：平衡（只读）" VerticalAlignment="Center" />
-          <TextBlock Grid.Column="3" HorizontalAlignment="Right" Foreground="{DynamicResource TextMutedBrush}" Text="已连接电源" VerticalAlignment="Center" />
+          <Grid.ColumnDefinitions><ColumnDefinition Width="1.05*" /><ColumnDefinition Width="1.05*" /><ColumnDefinition Width="1.05*" /><ColumnDefinition Width="1.1*" /><ColumnDefinition Width="0.85*" /></Grid.ColumnDefinitions>
+          <TextBlock AutomationProperties.Name="操作系统信息" Foreground="{DynamicResource TextMutedBrush}" Text="{Binding OperatingSystemText}" TextTrimming="CharacterEllipsis" ToolTip="{Binding SystemInformationDiagnostic}" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1" AutomationProperties.Name="设备型号信息" Foreground="{DynamicResource TextMutedBrush}" Text="{Binding DeviceModelText}" TextTrimming="CharacterEllipsis" ToolTip="{Binding SystemInformationDiagnostic}" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="2" AutomationProperties.Name="电源计划信息" Foreground="{DynamicResource TextMutedBrush}" Text="{Binding PowerPlanText}" TextTrimming="CharacterEllipsis" ToolTip="{Binding SystemInformationAvailabilityText}" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="3" AutomationProperties.Name="电池状态信息" Foreground="{DynamicResource TextMutedBrush}" Text="{Binding BatteryText}" TextTrimming="CharacterEllipsis" ToolTip="{Binding SystemInformationDiagnostic}" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="4" AutomationProperties.Name="电源来源信息" HorizontalAlignment="Right" Foreground="{DynamicResource TextMutedBrush}" Text="{Binding PowerSourceText}" TextTrimming="CharacterEllipsis" ToolTip="{Binding SystemInformationAvailabilityText}" VerticalAlignment="Center" />
         </Grid>
       </Border>
     </Grid>

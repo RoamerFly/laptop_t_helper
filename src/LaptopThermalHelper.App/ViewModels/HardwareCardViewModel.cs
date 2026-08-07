@@ -1,5 +1,5 @@
-using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using LaptopThermalHelper.App.Controls;
 using LaptopThermalHelper.Application.Monitoring;
 using LaptopThermalHelper.Core.Domain;
 using LiveChartsCore;
@@ -11,7 +11,7 @@ namespace LaptopThermalHelper.App.ViewModels;
 
 public partial class HardwareCardViewModel : ObservableObject
 {
-    private readonly ObservableCollection<double> _chartValues = [];
+    private readonly BatchObservableCollection<double> _chartValues = [];
 
     public HardwareCardViewModel(string title, string icon, SKColor color)
     {
@@ -95,8 +95,9 @@ public partial class HardwareCardViewModel : ObservableObject
     {
         if (snapshot is null)
         {
+            DeviceName = "未检测到";
             Temperature = double.NaN;
-            CurrentText = "--";
+            CurrentText = "未检测到";
             MaximumText = "--";
             AverageText = "--";
             LoadText = "--";
@@ -104,31 +105,34 @@ public partial class HardwareCardViewModel : ObservableObject
             FanText = "未开放";
             Level = ThermalLevel.Unknown;
             LevelText = "未获取";
-            _chartValues.Clear();
+            _chartValues.ReplaceWith([]);
             return;
         }
 
         DeviceSnapshot device = snapshot.Device;
         DeviceName = device.DisplayName;
-        Temperature = device.Temperature ?? double.NaN;
-        CurrentText = FormatTemperature(device.Temperature);
+        double? validTemperature = device.Temperature is double measured && double.IsFinite(measured)
+            ? measured
+            : null;
+        bool hasTemperature = validTemperature is not null;
+        Temperature = validTemperature ?? double.NaN;
+        CurrentText = hasTemperature ? FormatTemperature(validTemperature) : "不可用";
         MaximumText = FormatTemperature(snapshot.MaximumTemperature);
         AverageText = FormatTemperature(snapshot.AverageTemperature);
         LoadText = device.Load is double load ? $"{load:0}%" : "--";
         PowerText = device.Power is double power ? $"{power:0}W" : "--";
         FanText = device.FanRpm is double fan ? $"{fan:0} RPM" : "未开放";
-        Level = device.ThermalLevel;
-        LevelText = LevelToText(device.ThermalLevel);
+        Level = hasTemperature ? device.ThermalLevel : ThermalLevel.Unknown;
+        LevelText = hasTemperature ? LevelToText(device.ThermalLevel) : "不可用";
 
-        _chartValues.Clear();
         int first = Math.Max(0, snapshot.Trend.Count - 60);
-        for (int index = first; index < snapshot.Trend.Count; index++)
-        {
-            _chartValues.Add(snapshot.Trend[index].Value);
-        }
+        _chartValues.ReplaceWith(hasTemperature
+            ? snapshot.Trend.Skip(first).Select(static item => item.Value)
+            : []);
     }
 
-    private static string FormatTemperature(double? value) => value is double number ? $"{number:0}°C" : "--";
+    private static string FormatTemperature(double? value) =>
+        value is double number && double.IsFinite(number) ? $"{number:0}°C" : "--";
 
     private static string LevelToText(ThermalLevel level) => level switch
     {

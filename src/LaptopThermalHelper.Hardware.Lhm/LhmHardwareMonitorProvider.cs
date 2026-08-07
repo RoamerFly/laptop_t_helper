@@ -5,7 +5,7 @@ using LibreHardwareMonitor.Hardware;
 
 namespace LaptopThermalHelper.Hardware.Lhm;
 
-public sealed class LhmHardwareMonitorProvider : IHardwareMonitorProvider
+public sealed class LhmHardwareMonitorProvider : IHardwareMonitorProvider, IHardwareMonitorProviderMetadata
 {
     private static readonly JsonSerializerOptions DiscoveryJsonOptions = new() { WriteIndented = true };
     private readonly object _syncRoot = new();
@@ -20,6 +20,8 @@ public sealed class LhmHardwareMonitorProvider : IHardwareMonitorProvider
     };
     private bool _isOpen;
     private bool _discoveryWritten;
+
+    public HardwareProviderMode Mode => HardwareProviderMode.RealHardware;
 
     public async Task<IReadOnlyList<DeviceSample>> ReadAsync(CancellationToken cancellationToken)
     {
@@ -53,6 +55,7 @@ public sealed class LhmHardwareMonitorProvider : IHardwareMonitorProvider
             DateTimeOffset now = DateTimeOffset.Now;
             var samples = new List<DeviceSample>();
             var discoveries = new List<SensorDiscoveryEntry>();
+            var emittedDeviceIds = new HashSet<string>(StringComparer.Ordinal);
 
             foreach (IHardware hardware in EnumerateHardware(_computer.Hardware))
             {
@@ -62,21 +65,44 @@ public sealed class LhmHardwareMonitorProvider : IHardwareMonitorProvider
                     continue;
                 }
 
+                string deviceId = hardware.Identifier.ToString();
+                if (!emittedDeviceIds.Add(deviceId))
+                {
+                    continue;
+                }
+
                 IReadOnlyList<ISensor> sensors = EnumerateSensors(hardware).ToArray();
-                ISensor? temperatureSensor = SelectTemperatureSensor(hardware.HardwareType, sensors);
+                LhmTemperatureSensorCandidate? primaryTemperature = LhmTemperatureSelector.SelectPrimary(
+                    hardware.HardwareType,
+                    sensors
+                        .Where(static sensor => sensor.SensorType == SensorType.Temperature)
+                        .Select(static sensor => new LhmTemperatureSensorCandidate(
+                            sensor.Identifier.ToString(),
+                            sensor.Name,
+                            sensor.Value)));
+                ISensor? temperatureSensor = primaryTemperature is null
+                    ? null
+                    : sensors.FirstOrDefault(sensor => string.Equals(
+                        sensor.Identifier.ToString(),
+                        primaryTemperature.SensorId,
+                        StringComparison.Ordinal));
                 ISensor? loadSensor = SelectMetricSensor(SensorType.Load, sensors, "Total", "Core");
                 ISensor? powerSensor = SelectMetricSensor(SensorType.Power, sensors, "Package", "Core");
                 ISensor? fanSensor = SelectMetricSensor(SensorType.Fan, sensors);
 
                 samples.Add(new DeviceSample(
-                    hardware.Identifier.ToString(),
+                    deviceId,
                     kind.Value,
                     hardware.Name,
                     ValueOf(temperatureSensor),
                     ValueOf(loadSensor),
                     ValueOf(powerSensor),
                     ValueOf(fanSensor),
-                    now));
+                    now)
+                {
+                    TemperatureSensors = CreateTemperatureReadings(hardware, kind.Value, sensors, now),
+                    PrimaryTemperatureSensorName = temperatureSensor?.Name,
+                });
 
                 AddDiscoveries(discoveries, hardware, sensors, temperatureSensor);
             }
@@ -114,29 +140,10 @@ public sealed class LhmHardwareMonitorProvider : IHardwareMonitorProvider
         }
     }
 
-    private static IEnumerable<IHardware> EnumerateHardware(IEnumerable<IHardware> roots)
-    {
-        foreach (IHardware hardware in roots)
-        {
-            yield return hardware;
-        }
-    }
+    private static IEnumerable<IHardware> EnumerateHardware(IEnumerable<IHardware> roots) =>
+        LhmHardwareTraversal.DepthFirst(roots, static hardware => hardware.SubHardware);
 
-    private static IEnumerable<ISensor> EnumerateSensors(IHardware hardware)
-    {
-        foreach (ISensor sensor in hardware.Sensors)
-        {
-            yield return sensor;
-        }
-
-        foreach (IHardware child in hardware.SubHardware)
-        {
-            foreach (ISensor sensor in EnumerateSensors(child))
-            {
-                yield return sensor;
-            }
-        }
-    }
+    private static ISensor[] EnumerateSensors(IHardware hardware) => hardware.Sensors;
 
     private static DeviceKind? MapDeviceKind(HardwareType hardwareType) => hardwareType switch
     {
@@ -147,62 +154,6 @@ public sealed class LhmHardwareMonitorProvider : IHardwareMonitorProvider
         HardwareType.Battery => DeviceKind.Battery,
         _ => null,
     };
-
-    private static ISensor? SelectTemperatureSensor(
-        HardwareType hardwareType,
-        IReadOnlyList<ISensor> sensors)
-    {
-        return sensors
-            .Where(static sensor => sensor.SensorType == SensorType.Temperature && IsUsable(sensor.Value))
-            .OrderByDescending(sensor => TemperaturePriority(hardwareType, sensor.Name))
-            .ThenByDescending(static sensor => sensor.Value)
-            .FirstOrDefault();
-    }
-
-    private static int TemperaturePriority(HardwareType hardwareType, string name)
-    {
-        if (hardwareType == HardwareType.Cpu)
-        {
-            if (name.Equals("CPU Package", StringComparison.OrdinalIgnoreCase))
-            {
-                return 100;
-            }
-
-            if (name.Equals("Core Max", StringComparison.OrdinalIgnoreCase))
-            {
-                return 90;
-            }
-
-            if (ContainsAny(name, "Package", "Tctl", "Tdie"))
-            {
-                return 80;
-            }
-
-            return name.Contains("Core", StringComparison.OrdinalIgnoreCase) ? 60 : 50;
-        }
-
-        if (hardwareType is HardwareType.GpuNvidia or HardwareType.GpuAmd or HardwareType.GpuIntel)
-        {
-            if (name.Equals("GPU Core", StringComparison.OrdinalIgnoreCase))
-            {
-                return 100;
-            }
-
-            if (name.Contains("Core", StringComparison.OrdinalIgnoreCase))
-            {
-                return 90;
-            }
-
-            return ContainsAny(name, "Hot Spot", "Memory Junction") ? 40 : 50;
-        }
-
-        if (hardwareType == HardwareType.Storage)
-        {
-            return name.Contains("Composite", StringComparison.OrdinalIgnoreCase) ? 100 : 50;
-        }
-
-        return 0;
-    }
 
     private static ISensor? SelectMetricSensor(
         SensorType sensorType,
@@ -223,8 +174,36 @@ public sealed class LhmHardwareMonitorProvider : IHardwareMonitorProvider
     private static bool IsUsable(float? value) =>
         value is float number && !float.IsNaN(number) && !float.IsInfinity(number);
 
-    private static bool ContainsAny(string value, params string[] candidates) =>
-        candidates.Any(candidate => value.Contains(candidate, StringComparison.OrdinalIgnoreCase));
+    private static SensorReading[] CreateTemperatureReadings(
+        IHardware hardware,
+        DeviceKind kind,
+        IEnumerable<ISensor> sensors,
+        DateTimeOffset timestamp) =>
+        sensors
+            .Where(static sensor => sensor.SensorType == SensorType.Temperature)
+            .Select(sensor => new
+            {
+                Sensor = sensor,
+                Candidate = new LhmTemperatureSensorCandidate(
+                    sensor.Identifier.ToString(),
+                    sensor.Name,
+                    sensor.Value),
+            })
+            .Where(item => LhmTemperatureSelector.IsEligible(hardware.HardwareType, item.Candidate))
+            .OrderByDescending(item => LhmTemperatureSelector.GetPriority(hardware.HardwareType, item.Sensor.Name))
+            .ThenBy(item => item.Sensor.Identifier.ToString(), StringComparer.Ordinal)
+            .Select(item => new SensorReading(
+                hardware.Identifier.ToString(),
+                kind,
+                hardware.Name,
+                item.Sensor.Identifier.ToString(),
+                item.Sensor.Name,
+                SensorMetric.Temperature,
+                item.Sensor.Value,
+                "°C",
+                timestamp,
+                ReadingQuality.Good))
+            .ToArray();
 
     private static void AddDiscoveries(
         ICollection<SensorDiscoveryEntry> entries,
@@ -244,8 +223,38 @@ public sealed class LhmHardwareMonitorProvider : IHardwareMonitorProvider
                 sensor.Identifier.ToString(),
                 sensor.Value,
                 selected,
-                selected ? "选为总览主温度传感器" : "未选为总览主温度传感器"));
+                GetSelectionReason(hardware, sensor, selected)));
         }
+    }
+
+    private static string GetSelectionReason(IHardware hardware, ISensor sensor, bool selected)
+    {
+        if (sensor.SensorType != SensorType.Temperature)
+        {
+            return "非温度传感器，不参与总览温度选择";
+        }
+
+        var candidate = new LhmTemperatureSensorCandidate(
+            sensor.Identifier.ToString(),
+            sensor.Name,
+            sensor.Value);
+        if (hardware.HardwareType == HardwareType.Storage &&
+            LhmTemperatureSelector.IsStorageThresholdSensor(sensor.Name))
+        {
+            return "SMART 预警阈值，不是当前温度，已排除";
+        }
+
+        if (!LhmTemperatureSelector.IsPlausibleTemperature(sensor.Value))
+        {
+            return "温度值不可用或超出合理范围，已排除";
+        }
+
+        if (!LhmTemperatureSelector.IsEligible(hardware.HardwareType, candidate))
+        {
+            return "不适合作为当前温度，已排除";
+        }
+
+        return selected ? "选为总览主温度传感器" : "可用温度传感器，未选为总览主温度传感器";
     }
 
     private void WriteDiscoveryLogOnce(IReadOnlyCollection<SensorDiscoveryEntry> entries)

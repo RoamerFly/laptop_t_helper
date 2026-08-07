@@ -36,13 +36,13 @@ public sealed class MonitoringCoordinatorTests
             ]),
             Task.FromResult<IReadOnlyList<DeviceSample>>(
             [
-                Sample("cpu", DeviceKind.Cpu, 98, start.AddSeconds(1)),
+                Sample("cpu", DeviceKind.Cpu, 101, start.AddSeconds(1)),
                 Sample("gpu", DeviceKind.Gpu, 60, start.AddSeconds(1)),
                 Sample("ssd", DeviceKind.Storage, 40, start.AddSeconds(1)),
             ]),
             Task.FromResult<IReadOnlyList<DeviceSample>>(
             [
-                Sample("cpu", DeviceKind.Cpu, 98, start.AddSeconds(11)),
+                Sample("cpu", DeviceKind.Cpu, 101, start.AddSeconds(11)),
                 Sample("gpu", DeviceKind.Gpu, 60, start.AddSeconds(11)),
                 Sample("ssd", DeviceKind.Storage, 40, start.AddSeconds(11)),
             ]));
@@ -119,6 +119,92 @@ public sealed class MonitoringCoordinatorTests
         await historyStore.Received(2).AppendAsync(
             Arg.Any<MonitoringSnapshot>(),
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PollAsync_WhenRealProviderReturnsNoTemperature_ReportsUnavailableInsteadOfMockData()
+    {
+        IHardwareMonitorProvider provider = Substitute.For<IHardwareMonitorProvider>();
+        provider.ReadAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult<IReadOnlyList<DeviceSample>>(
+            [Sample("cpu", DeviceKind.Cpu, null, DateTimeOffset.UtcNow)]));
+        var coordinator = new MonitoringCoordinator(provider);
+
+        MonitoringSnapshot snapshot = await coordinator.PollAsync();
+
+        Assert.Equal(MonitoringAvailability.Unavailable, snapshot.Status.Availability);
+        Assert.Equal(HardwareProviderMode.RealHardware, snapshot.Status.Mode);
+        Assert.Equal("cpu", Assert.Single(snapshot.Devices).Device.DeviceId);
+        Assert.Null(Assert.Single(snapshot.Devices).Device.Temperature);
+    }
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public async Task PollAsync_WhenProviderReturnsInvalidTemperature_ExposesUnavailableInsteadOfAReading(double temperature)
+    {
+        IHardwareMonitorProvider provider = Substitute.For<IHardwareMonitorProvider>();
+        provider.ReadAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult<IReadOnlyList<DeviceSample>>(
+            [Sample("storage", DeviceKind.Storage, temperature, DateTimeOffset.UtcNow)]));
+        var coordinator = new MonitoringCoordinator(provider);
+
+        MonitoringSnapshot snapshot = await coordinator.PollAsync();
+
+        MonitoredDeviceSnapshot device = Assert.Single(snapshot.Devices);
+        Assert.Equal(MonitoringAvailability.Unavailable, snapshot.Status.Availability);
+        Assert.Equal(ThermalLevel.Unknown, device.Device.ThermalLevel);
+        Assert.Null(device.Device.Temperature);
+        Assert.Empty(device.Trend);
+    }
+
+    [Fact]
+    public async Task PollAsync_PreservesValidTemperatureSensorSourceForDetailViews()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        var sample = Sample("storage", DeviceKind.Storage, 68, now) with
+        {
+            PrimaryTemperatureSensorName = "Composite",
+            TemperatureSensors =
+            [
+                new SensorReading(
+                    "storage",
+                    DeviceKind.Storage,
+                    "NVMe",
+                    "storage/temperature/0",
+                    "Composite",
+                    SensorMetric.Temperature,
+                    68,
+                    "°C",
+                    now,
+                    ReadingQuality.Good),
+            ],
+        };
+        IHardwareMonitorProvider provider = CreateSequentialProvider(sample);
+        var coordinator = new MonitoringCoordinator(provider);
+
+        MonitoringSnapshot snapshot = await coordinator.PollAsync();
+
+        MonitoredDeviceSnapshot device = Assert.Single(snapshot.Devices);
+        Assert.Equal("Composite", device.PrimaryTemperatureSensorName);
+        SensorReading sensor = Assert.Single(device.TemperatureSensors);
+        Assert.Equal("storage/temperature/0", sensor.SensorId);
+        Assert.Equal(68, sensor.Value);
+    }
+
+    [Fact]
+    public async Task PollAsync_WhenProviderFails_ReportsExplicitError()
+    {
+        IHardwareMonitorProvider provider = Substitute.For<IHardwareMonitorProvider>();
+        provider.ReadAsync(Arg.Any<CancellationToken>()).Returns<Task<IReadOnlyList<DeviceSample>>>(
+            _ => throw new InvalidOperationException("provider unavailable"));
+        var coordinator = new MonitoringCoordinator(provider);
+
+        MonitoringSnapshot snapshot = await coordinator.PollAsync();
+
+        Assert.Empty(snapshot.Devices);
+        Assert.Equal(ThermalLevel.Unknown, snapshot.SystemLevel);
+        Assert.Equal(MonitoringAvailability.Error, snapshot.Status.Availability);
+        Assert.Equal(HardwareProviderMode.RealHardware, snapshot.Status.Mode);
     }
 
     private static IHardwareMonitorProvider CreateSequentialProvider(params DeviceSample[] samples)
