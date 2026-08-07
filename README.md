@@ -15,6 +15,26 @@
 
 需要 Windows 11 x64 与 .NET 10 SDK：
 
+直接双击仓库根目录的 `build.bat`，或在命令行执行：
+
+```bat
+build.bat
+```
+
+脚本会自动还原依赖、执行 Release 构建与测试，并将自包含的 Windows x64 程序发布到 `dist_windows`。构建成功后可运行：
+
+```bat
+dist_windows\LaptopThermalHelper.App.exe
+```
+
+需要读取真实硬件传感器时使用（部分硬件可能需要以管理员身份启动命令行）：
+
+```bat
+dist_windows\LaptopThermalHelper.App.exe --real-hardware
+```
+
+也可以手动执行开发构建：
+
 ```powershell
 dotnet restore
 dotnet build --configuration Release --no-restore

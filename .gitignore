@@ -2,6 +2,7 @@
 **/obj/
 publish/
 artifacts/
+/dist_windows/
 .vs/
 TestResults/
 logs/
