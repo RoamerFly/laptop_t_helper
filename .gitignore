@@ -16,3 +16,8 @@ logs/
 *.snk
 settings.local.json
 recovery-state.json
+
+# Internal planning notes (not project files)
+/笔记本温控助手-技术实现方案.md
+/github提交规范.md
+/docs/开发任务计划.md
