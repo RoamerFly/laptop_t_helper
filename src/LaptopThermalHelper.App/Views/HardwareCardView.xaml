@@ -1,0 +1,138 @@
+<UserControl x:Class="LaptopThermalHelper.App.Views.HardwareCardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:LaptopThermalHelper.App.Controls"
+             xmlns:converters="clr-namespace:LaptopThermalHelper.App.Converters"
+             xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF">
+  <UserControl.Resources>
+    <converters:ThermalLevelToBrushConverter x:Key="LevelBrushConverter" />
+  </UserControl.Resources>
+  <Border Style="{StaticResource CardStyle}">
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="58" />
+        <RowDefinition Height="202" />
+        <RowDefinition Height="38" />
+        <RowDefinition Height="118" />
+        <RowDefinition Height="54" />
+      </Grid.RowDefinitions>
+
+      <Grid Grid.Row="0" Margin="20,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <TextBlock Grid.Column="0"
+                   FontFamily="Segoe Fluent Icons"
+                   FontSize="25"
+                   Foreground="{DynamicResource BlueBrush}"
+                   Text="{Binding Icon}"
+                   VerticalAlignment="Center" />
+        <TextBlock Grid.Column="1"
+                   Margin="12,0,6,0"
+                   FontSize="19"
+                   Text="{Binding Title}"
+                   VerticalAlignment="Center" />
+        <TextBlock Grid.Column="2"
+                   FontSize="14"
+                   Foreground="{DynamicResource TextSecondaryBrush}"
+                   Text="{Binding DeviceName, StringFormat=({0})}"
+                   TextTrimming="CharacterEllipsis"
+                   VerticalAlignment="Center" />
+        <Ellipse Grid.Column="3"
+                 Width="15"
+                 Height="15"
+                 Fill="{Binding Level, Converter={StaticResource LevelBrushConverter}}"
+                 VerticalAlignment="Center" />
+      </Grid>
+
+      <Grid Grid.Row="1" Margin="20,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="52*" />
+          <ColumnDefinition Width="48*" />
+        </Grid.ColumnDefinitions>
+        <controls:TemperatureGauge Grid.Column="0"
+                                   Margin="2"
+                                   Temperature="{Binding Temperature}"
+                                   Level="{Binding Level}" />
+        <Grid Grid.Column="1" Margin="16,25,4,25">
+          <Grid.RowDefinitions>
+            <RowDefinition />
+            <RowDefinition />
+            <RowDefinition />
+          </Grid.RowDefinitions>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <TextBlock Style="{StaticResource MetricLabelStyle}" Text="当前值" />
+          <TextBlock Grid.Column="1" FontSize="17" Text="{Binding CurrentText}" VerticalAlignment="Center" />
+          <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" />
+          <TextBlock Grid.Row="1" Style="{StaticResource MetricLabelStyle}" Text="最高值" />
+          <TextBlock Grid.Row="1" Grid.Column="1" FontSize="17" Foreground="{DynamicResource HighBrush}" Text="{Binding MaximumText}" VerticalAlignment="Center" />
+          <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" />
+          <TextBlock Grid.Row="2" Style="{StaticResource MetricLabelStyle}" Text="平均值" />
+          <TextBlock Grid.Row="2" Grid.Column="1" FontSize="17" Foreground="{DynamicResource BlueBrush}" Text="{Binding AverageText}" VerticalAlignment="Center" />
+        </Grid>
+      </Grid>
+
+      <TextBlock Grid.Row="2"
+                 Margin="22,0"
+                 FontSize="16"
+                 Text="温度趋势（10分钟）"
+                 VerticalAlignment="Center" />
+
+      <Grid Grid.Row="3" Margin="18,0,18,0">
+        <lvc:CartesianChart Series="{Binding Series}"
+                            Background="Transparent"
+                            XAxes="{Binding XAxes}"
+                            YAxes="{Binding YAxes}"
+                            DrawMarginFrame="{x:Null}"
+                            ZoomMode="None" />
+        <TextBlock Margin="38,0,0,4"
+                   HorizontalAlignment="Left"
+                   VerticalAlignment="Bottom"
+                   FontSize="12"
+                   Foreground="{DynamicResource TextSecondaryBrush}"
+                   Text="10分钟前" />
+        <TextBlock Margin="0,0,5,4"
+                   HorizontalAlignment="Right"
+                   VerticalAlignment="Bottom"
+                   FontSize="12"
+                   Foreground="{DynamicResource TextSecondaryBrush}"
+                   Text="现在" />
+      </Grid>
+
+      <Border Grid.Row="4"
+              Background="{DynamicResource SurfaceAltBrush}"
+              BorderBrush="{DynamicResource DividerBrush}"
+              BorderThickness="0,1,0,0"
+              CornerRadius="0,0,14,14">
+        <Grid Margin="18,0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition />
+            <ColumnDefinition />
+            <ColumnDefinition Width="1.22*" />
+          </Grid.ColumnDefinitions>
+          <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+            <TextBlock Margin="0,0,7,0" Foreground="{DynamicResource TextMutedBrush}" Text="●" />
+            <TextBlock Foreground="{DynamicResource TextSecondaryBrush}" Text="负载  " />
+            <TextBlock Text="{Binding LoadText}" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+            <TextBlock Margin="0,0,7,0" Foreground="{DynamicResource TextMutedBrush}" Text="ϟ" />
+            <TextBlock Foreground="{DynamicResource TextSecondaryBrush}" Text="功耗  " />
+            <TextBlock Text="{Binding PowerText}" />
+          </StackPanel>
+          <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+            <TextBlock Margin="0,0,7,0" Foreground="{DynamicResource TextMutedBrush}" Text="✺" />
+            <TextBlock Foreground="{DynamicResource TextSecondaryBrush}" Text="风扇  " />
+            <TextBlock Text="{Binding FanText}" />
+          </StackPanel>
+        </Grid>
+      </Border>
+    </Grid>
+  </Border>
+</UserControl>

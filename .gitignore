@@ -1,0 +1,17 @@
+**/bin/
+**/obj/
+publish/
+artifacts/
+.vs/
+TestResults/
+logs/
+history/
+exports/
+*.user
+*.suo
+.env
+.env.*
+*.pfx
+*.snk
+settings.local.json
+recovery-state.json

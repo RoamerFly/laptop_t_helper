@@ -1,0 +1,27 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Deterministic>true</Deterministic>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <!-- LibreHardwareMonitor 0.9.6 carries legacy OpenTK/Skia WPF assets that NuGet
+         resolves through their .NET Framework assemblies on Windows. -->
+    <NoWarn>$(NoWarn);NU1701</NoWarn>
+    <Company>RoamerFly</Company>
+    <Product>笔记本温控助手</Product>
+    <Version>0.1.0</Version>
+    <Copyright>Copyright (c) 2026 RoamerFly</Copyright>
+    <CommunityToolkitMvvmVersion>8.4.2</CommunityToolkitMvvmVersion>
+    <MicrosoftExtensionsHostingVersion>10.0.10</MicrosoftExtensionsHostingVersion>
+    <LiveChartsVersion>2.0.5</LiveChartsVersion>
+    <SerilogExtensionsHostingVersion>10.0.0</SerilogExtensionsHostingVersion>
+    <SerilogSinksFileVersion>7.0.0</SerilogSinksFileVersion>
+    <MicrosoftNetTestSdkVersion>18.8.1</MicrosoftNetTestSdkVersion>
+    <XunitVersion>2.9.3</XunitVersion>
+    <XunitRunnerVisualStudioVersion>3.1.5</XunitRunnerVisualStudioVersion>
+    <CoverletCollectorVersion>10.0.1</CoverletCollectorVersion>
+    <NSubstituteVersion>6.0.0</NSubstituteVersion>
+  </PropertyGroup>
+</Project>

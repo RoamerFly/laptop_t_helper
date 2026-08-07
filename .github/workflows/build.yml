@@ -1,0 +1,34 @@
+name: build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore LaptopThermalHelper.sln
+
+      - name: Build
+        run: dotnet build LaptopThermalHelper.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test LaptopThermalHelper.sln --configuration Release --no-build
+
+      - name: Format
+        run: dotnet format LaptopThermalHelper.sln --verify-no-changes --no-restore --exclude LibreHardwareMonitor
+
+      - name: Publish x64
+        run: dotnet publish src/LaptopThermalHelper.App/LaptopThermalHelper.App.csproj --configuration Release --runtime win-x64 --self-contained true --no-restore -p:Platform=x64 --output artifacts/publish
