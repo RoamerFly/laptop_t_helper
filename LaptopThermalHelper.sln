@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LaptopThermalHelper.Applica
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LaptopThermalHelper.Core.Tests", "tests\LaptopThermalHelper.Core.Tests\LaptopThermalHelper.Core.Tests.csproj", "{F4D08807-D882-42CF-ACDA-FAE56F4FD802}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LaptopThermalHelper.Infrastructure.Tests", "tests\LaptopThermalHelper.Infrastructure.Tests\LaptopThermalHelper.Infrastructure.Tests.csproj", "{5C9FA4B9-9119-42D3-AD06-5914824F2ACE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -115,6 +117,18 @@ Global
 		{F4D08807-D882-42CF-ACDA-FAE56F4FD802}.Release|x64.Build.0 = Release|Any CPU
 		{F4D08807-D882-42CF-ACDA-FAE56F4FD802}.Release|x86.ActiveCfg = Release|Any CPU
 		{F4D08807-D882-42CF-ACDA-FAE56F4FD802}.Release|x86.Build.0 = Release|Any CPU
+		{5C9FA4B9-9119-42D3-AD06-5914824F2ACE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5C9FA4B9-9119-42D3-AD06-5914824F2ACE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5C9FA4B9-9119-42D3-AD06-5914824F2ACE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{5C9FA4B9-9119-42D3-AD06-5914824F2ACE}.Debug|x64.Build.0 = Debug|Any CPU
+		{5C9FA4B9-9119-42D3-AD06-5914824F2ACE}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{5C9FA4B9-9119-42D3-AD06-5914824F2ACE}.Debug|x86.Build.0 = Debug|Any CPU
+		{5C9FA4B9-9119-42D3-AD06-5914824F2ACE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5C9FA4B9-9119-42D3-AD06-5914824F2ACE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5C9FA4B9-9119-42D3-AD06-5914824F2ACE}.Release|x64.ActiveCfg = Release|Any CPU
+		{5C9FA4B9-9119-42D3-AD06-5914824F2ACE}.Release|x64.Build.0 = Release|Any CPU
+		{5C9FA4B9-9119-42D3-AD06-5914824F2ACE}.Release|x86.ActiveCfg = Release|Any CPU
+		{5C9FA4B9-9119-42D3-AD06-5914824F2ACE}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -127,5 +141,6 @@ Global
 		{B0B66DB0-A4A6-4BD7-AB1D-82235D4CCD31} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{B1AAB508-491B-4AB8-970A-778229254388} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{F4D08807-D882-42CF-ACDA-FAE56F4FD802} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{5C9FA4B9-9119-42D3-AD06-5914824F2ACE} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

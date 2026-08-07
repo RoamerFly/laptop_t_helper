@@ -1,4 +1,5 @@
 using LaptopThermalHelper.Application.Hardware;
+using LaptopThermalHelper.Application.History;
 using LaptopThermalHelper.Application.Monitoring;
 using LaptopThermalHelper.Core.Domain;
 using NSubstitute;
@@ -71,6 +72,62 @@ public sealed class MonitoringCoordinatorTests
         }
 
         Assert.Equal(300, Assert.Single(snapshot.Devices).Trend.Count);
+    }
+
+    [Fact]
+    public async Task PollAsync_RecordsHistoryAtFiveSecondIntervals()
+    {
+        DateTimeOffset start = DateTimeOffset.UtcNow;
+        IHardwareMonitorProvider provider = CreateSequentialProvider(
+            Sample("cpu", DeviceKind.Cpu, 60, start),
+            Sample("cpu", DeviceKind.Cpu, 61, start.AddSeconds(2)),
+            Sample("cpu", DeviceKind.Cpu, 62, start.AddSeconds(4)),
+            Sample("cpu", DeviceKind.Cpu, 63, start.AddSeconds(6)));
+        ITemperatureHistoryStore historyStore = Substitute.For<ITemperatureHistoryStore>();
+        historyStore.AppendAsync(Arg.Any<MonitoringSnapshot>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+        var coordinator = new MonitoringCoordinator(provider, historyStore);
+
+        await coordinator.PollAsync();
+        await coordinator.PollAsync();
+        await coordinator.PollAsync();
+        await coordinator.PollAsync();
+
+        await historyStore.Received(2).AppendAsync(
+            Arg.Any<MonitoringSnapshot>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PollAsync_WhenHistoryWriteFails_KeepsSnapshotAndRetries()
+    {
+        DateTimeOffset start = DateTimeOffset.UtcNow;
+        IHardwareMonitorProvider provider = CreateSequentialProvider(
+            Sample("cpu", DeviceKind.Cpu, 60, start),
+            Sample("cpu", DeviceKind.Cpu, 61, start.AddSeconds(2)));
+        ITemperatureHistoryStore historyStore = Substitute.For<ITemperatureHistoryStore>();
+        historyStore.AppendAsync(Arg.Any<MonitoringSnapshot>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new IOException("磁盘不可用")), Task.CompletedTask);
+        var coordinator = new MonitoringCoordinator(provider, historyStore);
+
+        MonitoringSnapshot first = await coordinator.PollAsync();
+        MonitoringSnapshot second = await coordinator.PollAsync();
+
+        Assert.Single(first.Devices);
+        Assert.Single(second.Devices);
+        Assert.Null(coordinator.LastHistoryWriteError);
+        await historyStore.Received(2).AppendAsync(
+            Arg.Any<MonitoringSnapshot>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    private static IHardwareMonitorProvider CreateSequentialProvider(params DeviceSample[] samples)
+    {
+        IHardwareMonitorProvider provider = Substitute.For<IHardwareMonitorProvider>();
+        var queue = new Queue<DeviceSample>(samples);
+        provider.ReadAsync(Arg.Any<CancellationToken>())
+            .Returns(_ => Task.FromResult<IReadOnlyList<DeviceSample>>([queue.Dequeue()]));
+        return provider;
     }
 
     private static DeviceSample Sample(

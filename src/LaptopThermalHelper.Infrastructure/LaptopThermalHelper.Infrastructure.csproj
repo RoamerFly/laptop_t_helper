@@ -6,4 +6,7 @@
     <PackageReference Include="Serilog.Extensions.Hosting" Version="$(SerilogExtensionsHostingVersion)" />
     <PackageReference Include="Serilog.Sinks.File" Version="$(SerilogSinksFileVersion)" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\LaptopThermalHelper.Application\LaptopThermalHelper.Application.csproj" />
+  </ItemGroup>
 </Project>

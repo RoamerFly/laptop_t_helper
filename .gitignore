@@ -5,8 +5,8 @@ artifacts/
 .vs/
 TestResults/
 logs/
-history/
-exports/
+/history/
+/exports/
 *.user
 *.suo
 .env

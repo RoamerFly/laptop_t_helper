@@ -1,4 +1,5 @@
 using LaptopThermalHelper.Application.Hardware;
+using LaptopThermalHelper.Application.History;
 using LaptopThermalHelper.Core.Collections;
 using LaptopThermalHelper.Core.Domain;
 using LaptopThermalHelper.Core.Statistics;
@@ -9,14 +10,27 @@ namespace LaptopThermalHelper.Application.Monitoring;
 public sealed class MonitoringCoordinator : IDisposable
 {
     private const int TrendCapacity = 300;
+    private static readonly TimeSpan HistoryWriteInterval = TimeSpan.FromSeconds(5);
     private readonly IHardwareMonitorProvider _provider;
+    private readonly ITemperatureHistoryStore _historyStore;
     private readonly Dictionary<string, DeviceState> _states = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _pollLock = new(1, 1);
+    private DateTimeOffset? _nextHistoryWriteAt;
 
     public MonitoringCoordinator(IHardwareMonitorProvider provider)
+        : this(provider, NullTemperatureHistoryStore.Instance)
+    {
+    }
+
+    public MonitoringCoordinator(
+        IHardwareMonitorProvider provider,
+        ITemperatureHistoryStore historyStore)
     {
         _provider = provider;
+        _historyStore = historyStore;
     }
+
+    public Exception? LastHistoryWriteError { get; private set; }
 
     public void Dispose()
     {
@@ -42,7 +56,7 @@ public sealed class MonitoringCoordinator : IDisposable
                     state.Trend.Add(new TemperaturePoint(sample.Timestamp, temperature));
                 }
 
-                var snapshot = new DeviceSnapshot(
+                var deviceSnapshot = new DeviceSnapshot(
                     sample.DeviceId,
                     sample.Kind,
                     sample.DisplayName,
@@ -54,7 +68,7 @@ public sealed class MonitoringCoordinator : IDisposable
                     sample.Timestamp);
 
                 devices.Add(new MonitoredDeviceSnapshot(
-                    snapshot,
+                    deviceSnapshot,
                     state.Statistics.Maximum,
                     state.Statistics.Average,
                     state.Trend));
@@ -65,7 +79,9 @@ public sealed class MonitoringCoordinator : IDisposable
                 ? DateTimeOffset.UtcNow
                 : samples.Max(static sample => sample.Timestamp);
 
-            return new MonitoringSnapshot(devices, systemLevel, timestamp);
+            var snapshot = new MonitoringSnapshot(devices, systemLevel, timestamp);
+            await RecordHistoryIfDueAsync(snapshot, cancellationToken).ConfigureAwait(false);
+            return snapshot;
         }
         finally
         {
@@ -101,8 +117,42 @@ public sealed class MonitoringCoordinator : IDisposable
 
     private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
 
+    private async Task RecordHistoryIfDueAsync(
+        MonitoringSnapshot snapshot,
+        CancellationToken cancellationToken)
+    {
+        if (snapshot.Devices.Count == 0 ||
+            (_nextHistoryWriteAt is DateTimeOffset nextWrite && snapshot.Timestamp < nextWrite))
+        {
+            return;
+        }
+
+        try
+        {
+            await _historyStore.AppendAsync(snapshot, cancellationToken).ConfigureAwait(false);
+            _nextHistoryWriteAt = snapshot.Timestamp + HistoryWriteInterval;
+            LastHistoryWriteError = null;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            // 历史文件故障不能中断硬件采样；保留错误供表现层和日志读取。
+            LastHistoryWriteError = exception;
+        }
+    }
+
     private sealed record DeviceState(
         ThermalStateMachine StateMachine,
         RunningStatistics Statistics,
         FixedRingBuffer<TemperaturePoint> Trend);
+
+    private sealed class NullTemperatureHistoryStore : ITemperatureHistoryStore
+    {
+        public static NullTemperatureHistoryStore Instance { get; } = new();
+
+        public Task AppendAsync(MonitoringSnapshot snapshot, CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+
+        public Task<HistoryExportResult> ExportAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(HistoryExportResult.Empty);
+    }
 }

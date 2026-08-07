@@ -2,8 +2,10 @@ using System.Windows;
 using LaptopThermalHelper.App.Services;
 using LaptopThermalHelper.App.ViewModels;
 using LaptopThermalHelper.Application.Hardware;
+using LaptopThermalHelper.Application.History;
 using LaptopThermalHelper.Application.Monitoring;
 using LaptopThermalHelper.Hardware.Lhm;
+using LaptopThermalHelper.Infrastructure.History;
 using LaptopThermalHelper.Infrastructure.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -30,6 +32,7 @@ public partial class App : System.Windows.Application
                 services.AddSingleton<IHardwareMonitorProvider>(_ => useRealHardware
                     ? new LhmHardwareMonitorProvider()
                     : new FakeHardwareMonitorProvider());
+                services.AddSingleton<ITemperatureHistoryStore, CsvTemperatureHistoryStore>();
                 services.AddSingleton<MonitoringCoordinator>();
                 services.AddSingleton<DashboardViewModel>();
                 services.AddSingleton<MainWindow>();

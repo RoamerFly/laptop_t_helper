@@ -1,6 +1,7 @@
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using LaptopThermalHelper.Application.History;
 using LaptopThermalHelper.Application.Monitoring;
 using LaptopThermalHelper.Core.Domain;
 using SkiaSharp;
@@ -10,10 +11,14 @@ namespace LaptopThermalHelper.App.ViewModels;
 public partial class DashboardViewModel : ObservableObject
 {
     private readonly MonitoringCoordinator _coordinator;
+    private readonly ITemperatureHistoryStore _historyStore;
 
-    public DashboardViewModel(MonitoringCoordinator coordinator)
+    public DashboardViewModel(
+        MonitoringCoordinator coordinator,
+        ITemperatureHistoryStore historyStore)
     {
         _coordinator = coordinator;
+        _historyStore = historyStore;
         Cpu = new HardwareCardViewModel("CPU", "\uE950", new SKColor(49, 216, 67));
         Gpu = new HardwareCardViewModel("GPU", "\uE7F8", new SKColor(49, 216, 67));
         Storage = new HardwareCardViewModel("SSD", "\uEDA2", new SKColor(38, 201, 124));
@@ -43,6 +48,12 @@ public partial class DashboardViewModel : ObservableObject
     [ObservableProperty]
     private bool _isRefreshing;
 
+    [ObservableProperty]
+    private string _historyExportActionText = "▤  导出温度日志";
+
+    [ObservableProperty]
+    private string? _lastHistoryExportPath;
+
     private readonly DateTimeOffset _startedAt = DateTimeOffset.Now;
 
     [RelayCommand(AllowConcurrentExecutions = false)]
@@ -65,6 +76,28 @@ public partial class DashboardViewModel : ObservableObject
         finally
         {
             IsRefreshing = false;
+        }
+    }
+
+    [RelayCommand(AllowConcurrentExecutions = false)]
+    private async Task ExportHistoryAsync()
+    {
+        try
+        {
+            HistoryExportResult result = await _historyStore.ExportAsync(CancellationToken.None);
+            if (!result.HasData)
+            {
+                HistoryExportActionText = "○  暂无温度历史";
+                LastHistoryExportPath = null;
+                return;
+            }
+
+            HistoryExportActionText = $"✓  已导出 {result.RecordCount} 条记录";
+            LastHistoryExportPath = result.FilePath;
+        }
+        catch
+        {
+            HistoryExportActionText = "×  导出失败，请稍后重试";
         }
     }
 

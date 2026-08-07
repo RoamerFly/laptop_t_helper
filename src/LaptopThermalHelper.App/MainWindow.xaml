@@ -374,8 +374,13 @@
                   <Button Style="{StaticResource QuickButtonStyle}" Background="{DynamicResource PurpleSoftBrush}" BorderBrush="{DynamicResource PurpleBrush}" Foreground="{DynamicResource PurpleTextBrush}">
                     <Grid><TextBlock Text="⚖  切换性能模式" /><TextBlock HorizontalAlignment="Right" Text="›" /></Grid>
                   </Button>
-                  <Button Style="{StaticResource QuickButtonStyle}" Background="{DynamicResource InfoSoftBrush}" BorderBrush="{DynamicResource InfoBrush}" Foreground="{DynamicResource InfoTextBrush}">
-                    <Grid><TextBlock Text="▤  导出温度日志" /><TextBlock HorizontalAlignment="Right" Text="›" /></Grid>
+                  <Button Command="{Binding ExportHistoryCommand}"
+                          ToolTip="{Binding LastHistoryExportPath}"
+                          Style="{StaticResource QuickButtonStyle}"
+                          Background="{DynamicResource InfoSoftBrush}"
+                          BorderBrush="{DynamicResource InfoBrush}"
+                          Foreground="{DynamicResource InfoTextBrush}">
+                    <Grid><TextBlock Text="{Binding HistoryExportActionText}" /><TextBlock HorizontalAlignment="Right" Text="›" /></Grid>
                   </Button>
                   <Button Style="{StaticResource QuickButtonStyle}" Background="{DynamicResource CriticalSoftBrush}" BorderBrush="{DynamicResource CriticalBrush}" Foreground="{DynamicResource CriticalTextBrush}">
                     <Grid><TextBlock Text="↶  一键恢复默认设置" /><TextBlock HorizontalAlignment="Right" Text="›" /></Grid>

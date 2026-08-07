@@ -9,6 +9,7 @@
 - 温度阈值、延迟升级与迟滞恢复状态机
 - 10 分钟固定容量趋势缓存
 - LibreHardwareMonitor 只读适配层
+- 每 5 秒 CSV 历史记录与合并导出
 
 ## 构建
 
@@ -24,6 +25,8 @@ dotnet format --verify-no-changes
 默认使用模拟数据。传入 `--real-hardware` 可启用 LibreHardwareMonitor 只读采集；部分传感器可能需要管理员权限。
 
 详细进度见 [开发任务计划](./docs/开发任务计划.md)。传入 `--light-theme` 可直接以浅色主题启动，便于视觉验收。
+
+历史数据保存在 `%LocalAppData%/RoamerFly/LaptopThermalHelper/history/`，总览页的“导出温度日志”会把现有日文件合并到 `exports/`，缺失传感器字段保持为空而不会写成 `0`。
 
 ## 免责声明
 
