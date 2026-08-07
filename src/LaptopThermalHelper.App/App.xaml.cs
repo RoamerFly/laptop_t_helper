@@ -35,6 +35,7 @@ public partial class App : System.Windows.Application
                 services.AddSingleton<ITemperatureHistoryStore, CsvTemperatureHistoryStore>();
                 services.AddSingleton<MonitoringCoordinator>();
                 services.AddSingleton<DashboardViewModel>();
+                services.AddSingleton<ShellViewModel>();
                 services.AddSingleton<MainWindow>();
             })
             .Build();

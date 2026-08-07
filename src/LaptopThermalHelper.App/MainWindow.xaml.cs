@@ -1,7 +1,10 @@
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Threading;
 using LaptopThermalHelper.App.Services;
 using LaptopThermalHelper.App.ViewModels;
@@ -13,32 +16,34 @@ public partial class MainWindow : Window
 {
     private const int WindowMessageGetMinMaxInfo = 0x0024;
     private const uint MonitorDefaultToNearest = 0x00000002;
-    private const double DesignWidth = 1536;
-    private const double DesignHeight = 1024;
-    private readonly DashboardViewModel _viewModel;
+    private const double DefaultMinWindowWidth = 1280;
+    private const double DefaultMinWindowHeight = 720;
+    private const double PreferredWindowWidth = 1440;
+    private const double PreferredWindowHeight = 900;
+    private const double InitialWorkAreaRatio = 0.94;
+    private readonly ShellViewModel _viewModel;
     private readonly ThemeService _themeService;
-    private readonly DispatcherTimer _sampleTimer = new()
-    {
-        Interval = TimeSpan.FromSeconds(2),
-    };
+    private readonly DispatcherTimer _sampleTimer = new() { Interval = TimeSpan.FromSeconds(2) };
+    private bool _initialBoundsApplied;
 
-    public MainWindow(DashboardViewModel viewModel, ThemeService themeService)
+    public MainWindow(ShellViewModel viewModel, ThemeService themeService)
     {
         InitializeComponent();
         _viewModel = viewModel;
         _themeService = themeService;
         DataContext = viewModel;
-        ThemeButton.Content = themeService.IsDark ? "☾  深色" : "☀  浅色";
+        UpdateThemeButton();
         Loaded += MainWindow_Loaded;
         Closed += MainWindow_Closed;
-        SizeChanged += MainWindow_SizeChanged;
         _sampleTimer.Tick += SampleTimer_Tick;
     }
 
     protected override void OnSourceInitialized(EventArgs e)
     {
         base.OnSourceInitialized(e);
-        HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WindowMessageHook);
+        IntPtr windowHandle = new WindowInteropHelper(this).Handle;
+        HwndSource.FromHwnd(windowHandle)?.AddHook(WindowMessageHook);
+        ApplyInitialBounds(windowHandle);
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -47,33 +52,15 @@ public partial class MainWindow : Window
         _sampleTimer.Start();
     }
 
-    private void MainWindow_Closed(object? sender, EventArgs e)
-    {
-        _sampleTimer.Stop();
-    }
+    private void MainWindow_Closed(object? sender, EventArgs e) => _sampleTimer.Stop();
 
-    private void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
-    {
-        if (ActualHeight <= 0)
-        {
-            return;
-        }
-
-        // Viewbox 仍按高度等比缩放控件，但在宽屏窗口中扩展设计画布宽度，
-        // 让星号列吸收额外空间，避免左右留白和非等比拉伸。
-        DesignRoot.Width = Math.Max(DesignWidth, (ActualWidth / ActualHeight) * DesignHeight);
-    }
-
-    private async void SampleTimer_Tick(object? sender, EventArgs e)
-    {
-        await RefreshSafelyAsync();
-    }
+    private async void SampleTimer_Tick(object? sender, EventArgs e) => await RefreshSafelyAsync();
 
     private async Task RefreshSafelyAsync()
     {
         try
         {
-            await _viewModel.RefreshAsync();
+            await _viewModel.Dashboard.RefreshAsync();
         }
         catch (Exception exception)
         {
@@ -83,7 +70,7 @@ public partial class MainWindow : Window
 
     private void DragArea_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.LeftButton != MouseButtonState.Pressed)
+        if (e.LeftButton != MouseButtonState.Pressed || IsInteractiveSource(e.OriginalSource as DependencyObject))
         {
             return;
         }
@@ -97,12 +84,66 @@ public partial class MainWindow : Window
         DragMove();
     }
 
+    private static bool IsInteractiveSource(DependencyObject? source)
+    {
+        for (FrameworkElement? current = source as FrameworkElement; current is not null; current = current.Parent as FrameworkElement)
+        {
+            if (current is ButtonBase or ToggleButton or TextBox or ComboBox or ListBoxItem)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void ApplyInitialBounds(IntPtr windowHandle)
+    {
+        if (_initialBoundsApplied)
+        {
+            return;
+        }
+
+        IntPtr monitor = MonitorFromWindow(windowHandle, MonitorDefaultToNearest);
+        if (monitor == IntPtr.Zero)
+        {
+            return;
+        }
+
+        var monitorInfo = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
+        if (!GetMonitorInfo(monitor, ref monitorInfo))
+        {
+            return;
+        }
+
+        uint dpi = GetDpiForWindow(windowHandle);
+        double scale = Math.Max(1, dpi / 96d);
+        double workAreaWidth = (monitorInfo.WorkArea.Right - monitorInfo.WorkArea.Left) / scale;
+        double workAreaHeight = (monitorInfo.WorkArea.Bottom - monitorInfo.WorkArea.Top) / scale;
+        if (workAreaWidth <= 0 || workAreaHeight <= 0)
+        {
+            return;
+        }
+
+        // Keep the normal 1280×720 minimum when it fits, but scale it down before
+        // Windows clamps the first window outside a high-DPI work area.
+        MinWidth = Math.Min(DefaultMinWindowWidth, Math.Max(1, workAreaWidth * 0.9));
+        MinHeight = Math.Min(DefaultMinWindowHeight, Math.Max(1, workAreaHeight * 0.9));
+        Width = Math.Max(MinWidth, Math.Min(PreferredWindowWidth, workAreaWidth * InitialWorkAreaRatio));
+        Height = Math.Max(MinHeight, Math.Min(PreferredWindowHeight, workAreaHeight * InitialWorkAreaRatio));
+        Left = (monitorInfo.WorkArea.Left / scale) + ((workAreaWidth - Width) / 2);
+        Top = (monitorInfo.WorkArea.Top / scale) + ((workAreaHeight - Height) / 2);
+        _initialBoundsApplied = true;
+    }
+
     private void ThemeButton_Click(object sender, RoutedEventArgs e)
     {
         _themeService.Toggle();
-        ThemeButton.Content = _themeService.IsDark ? "☾  深色" : "☀  浅色";
+        UpdateThemeButton();
         InvalidateVisual();
     }
+
+    private void UpdateThemeButton() => ThemeButton.Content = _themeService.IsDark ? "☾  深色" : "☀  浅色";
 
     private void MinimizeButton_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
 
@@ -110,17 +151,9 @@ public partial class MainWindow : Window
 
     private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
 
-    private void ToggleMaximize()
-    {
-        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-    }
+    private void ToggleMaximize() => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
 
-    private static IntPtr WindowMessageHook(
-        IntPtr windowHandle,
-        int message,
-        IntPtr wParam,
-        IntPtr lParam,
-        ref bool handled)
+    private static IntPtr WindowMessageHook(IntPtr windowHandle, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         if (message != WindowMessageGetMinMaxInfo)
         {
@@ -133,10 +166,7 @@ public partial class MainWindow : Window
             return IntPtr.Zero;
         }
 
-        var monitorInfo = new MonitorInfo
-        {
-            Size = Marshal.SizeOf<MonitorInfo>(),
-        };
+        var monitorInfo = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
         if (!GetMonitorInfo(monitor, ref monitorInfo))
         {
             return IntPtr.Zero;
@@ -158,6 +188,9 @@ public partial class MainWindow : Window
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetMonitorInfo(IntPtr monitorHandle, ref MonitorInfo monitorInfo);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(IntPtr windowHandle);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct NativePoint

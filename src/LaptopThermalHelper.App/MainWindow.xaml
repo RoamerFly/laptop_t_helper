@@ -3,15 +3,17 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:converters="clr-namespace:LaptopThermalHelper.App.Converters"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        xmlns:viewModels="clr-namespace:LaptopThermalHelper.App.ViewModels"
         xmlns:views="clr-namespace:LaptopThermalHelper.App.Views"
         Title="笔记本温控助手"
-        Width="1280"
-        Height="720"
+        Icon="Assets/icon.ico"
+        Width="1440"
+        Height="900"
         MinWidth="1280"
         MinHeight="720"
         Background="{DynamicResource WindowBackgroundBrush}"
         ResizeMode="CanResize"
-        WindowStartupLocation="CenterScreen"
+        WindowStartupLocation="Manual"
         WindowStyle="None">
   <shell:WindowChrome.WindowChrome>
     <shell:WindowChrome CaptionHeight="0"
@@ -22,448 +24,173 @@
   </shell:WindowChrome.WindowChrome>
   <Window.Resources>
     <converters:ThermalLevelToBrushConverter x:Key="LevelBrushConverter" />
+    <DataTemplate DataType="{x:Type viewModels:DashboardPage}">
+      <views:DashboardPage DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}" />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type viewModels:TemperaturePage}">
+      <views:TemperatureMonitoringPage DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}" />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type viewModels:FanPage}">
+      <views:FanControlPage DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}" />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type viewModels:PerformancePage}">
+      <views:PerformanceModePage DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}" />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type viewModels:SettingsPage}">
+      <views:SettingsPage DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}" />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type viewModels:LogsPage}">
+      <views:LogsPage DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}" />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type viewModels:AboutPage}">
+      <views:AboutPage DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}" />
+    </DataTemplate>
+    <Style x:Key="NavigationListItemStyle" TargetType="ListBoxItem">
+      <Setter Property="Height" Value="48" />
+      <Setter Property="Margin" Value="14,3" />
+      <Setter Property="Padding" Value="14,0" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+      <Setter Property="AutomationProperties.Name" Value="{Binding Title}" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ListBoxItem">
+            <Border x:Name="Root" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="9" Padding="{TemplateBinding Padding}">
+              <ContentPresenter VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Root" Property="Background" Value="{DynamicResource SurfaceAltBrush}" />
+              </Trigger>
+              <Trigger Property="IsSelected" Value="True">
+                <Setter TargetName="Root" Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                <Setter Property="Foreground" Value="{DynamicResource BlueBrush}" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
   </Window.Resources>
 
   <Grid Background="{DynamicResource WindowBackgroundBrush}">
-    <Viewbox Stretch="Uniform">
-      <Grid x:Name="DesignRoot" Width="1536" Height="1024" Background="{DynamicResource WindowBackgroundBrush}">
-        <Grid.RowDefinitions>
-          <RowDefinition Height="972" />
-          <RowDefinition Height="52" />
-        </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="278*" />
-          <ColumnDefinition Width="1258*" />
-        </Grid.ColumnDefinitions>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="48" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="248" />
+      <ColumnDefinition Width="*" />
+    </Grid.ColumnDefinitions>
 
-        <Border Grid.Row="0"
-                Grid.Column="0"
-                Background="{DynamicResource SidebarBackgroundBrush}"
-                BorderBrush="{DynamicResource BorderBrush}"
-                BorderThickness="0,0,1,0">
+    <Grid Grid.Row="0"
+          Grid.Column="0"
+          Background="{DynamicResource SidebarBackgroundBrush}"
+          MouseLeftButtonDown="DragArea_MouseLeftButtonDown">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="48" />
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="50" />
+      </Grid.ColumnDefinitions>
+      <Image Grid.Column="0" Width="30" Height="30" Margin="14,0,4,0" Source="/Assets/icon.png" Stretch="Uniform" />
+      <TextBlock Grid.Column="1" FontSize="16" FontWeight="SemiBold" Text="笔记本温控助手" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+      <TextBlock Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Text="v0.1.0" />
+    </Grid>
+
+    <Grid Grid.Row="0"
+          Grid.Column="1"
+          Background="{DynamicResource WindowBackgroundBrush}"
+          MouseLeftButtonDown="DragArea_MouseLeftButtonDown">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition />
+        <ColumnDefinition Width="106" />
+        <ColumnDefinition Width="144" />
+      </Grid.ColumnDefinitions>
+      <StackPanel Margin="24,0" Orientation="Horizontal" VerticalAlignment="Center" IsHitTestVisible="False">
+        <TextBlock FontSize="17" FontWeight="SemiBold" Text="{Binding CurrentPage.Title}" />
+        <TextBlock Margin="10,2,0,0" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Text="{Binding CurrentPage.Subtitle}" />
+      </StackPanel>
+      <Button Grid.Column="1"
+              x:Name="ThemeButton"
+              Height="30"
+              Margin="0,0,8,0"
+              Click="ThemeButton_Click"
+              Content="☾  深色"
+              Style="{StaticResource SecondaryButtonStyle}" />
+      <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+        <Button AutomationProperties.Name="最小化" Click="MinimizeButton_Click" Style="{StaticResource WindowButtonStyle}">
+          <Rectangle Width="13" Height="1.5" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+        </Button>
+        <Button AutomationProperties.Name="最大化" Click="MaximizeButton_Click" Style="{StaticResource WindowButtonStyle}">
+          <Border Width="12" Height="12" BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" BorderThickness="1.5" />
+        </Button>
+        <Button AutomationProperties.Name="关闭" Click="CloseButton_Click" Style="{StaticResource CloseWindowButtonStyle}">
+          <Grid Width="14" Height="14">
+            <Rectangle Width="16" Height="1.5" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" RenderTransformOrigin="0.5,0.5"><Rectangle.RenderTransform><RotateTransform Angle="45" /></Rectangle.RenderTransform></Rectangle>
+            <Rectangle Width="16" Height="1.5" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" RenderTransformOrigin="0.5,0.5"><Rectangle.RenderTransform><RotateTransform Angle="-45" /></Rectangle.RenderTransform></Rectangle>
+          </Grid>
+        </Button>
+      </StackPanel>
+    </Grid>
+
+    <Border Grid.Row="1" Grid.Column="0" Background="{DynamicResource SidebarBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,1,0">
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="*" />
+          <RowDefinition Height="214" />
+        </Grid.RowDefinitions>
+        <ListBox ItemsSource="{Binding NavigationItems}"
+                 SelectedItem="{Binding SelectedNavigation, Mode=TwoWay}"
+                 BorderThickness="0"
+                 Background="Transparent"
+                 ItemContainerStyle="{StaticResource NavigationListItemStyle}">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Width="32" FontFamily="Segoe Fluent Icons" FontSize="19" Text="{Binding Icon}" VerticalAlignment="Center" />
+                <TextBlock FontSize="15" Text="{Binding Title}" VerticalAlignment="Center" />
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <Border Grid.Row="1" Margin="14,0,14,16" Style="{StaticResource CardStyle}" Padding="14">
           <Grid>
             <Grid.RowDefinitions>
-              <RowDefinition Height="86" />
+              <RowDefinition Height="34" />
+              <RowDefinition Height="34" />
+              <RowDefinition Height="1" />
               <RowDefinition Height="*" />
-              <RowDefinition Height="260" />
             </Grid.RowDefinitions>
-
-            <Grid Grid.Row="0" MouseLeftButtonDown="DragArea_MouseLeftButtonDown">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="58" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="62" />
-              </Grid.ColumnDefinitions>
-              <Border Grid.Column="0"
-                      Width="34"
-                      Height="38"
-                      Margin="18,0,0,0"
-                      HorizontalAlignment="Left"
-                      VerticalAlignment="Center"
-                      Background="{DynamicResource AccentBrush}"
-                      CornerRadius="9">
-                <TextBlock HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           FontSize="22"
-                           FontWeight="Bold"
-                           Foreground="White"
-                           Text="✓" />
-              </Border>
-              <TextBlock Grid.Column="1"
-                         FontSize="20"
-                         FontWeight="SemiBold"
-                         Text="笔记本温控助手"
-                         VerticalAlignment="Center" />
-              <Border Grid.Column="2"
-                      Width="52"
-                      Height="27"
-                      BorderBrush="{DynamicResource BorderBrush}"
-                      BorderThickness="1"
-                      CornerRadius="13"
-                      VerticalAlignment="Center">
-                <TextBlock HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           FontSize="13"
-                           Text="v0.1.0" />
-              </Border>
-            </Grid>
-
-            <StackPanel Grid.Row="1" Margin="0,11,0,0">
-              <RadioButton IsChecked="True" Style="{StaticResource NavButtonStyle}">
-                <StackPanel Orientation="Horizontal">
-                  <TextBlock Width="40" FontFamily="Segoe Fluent Icons" FontSize="22" Text="&#xE80F;" />
-                  <TextBlock FontSize="17" Text="总览" />
-                </StackPanel>
-              </RadioButton>
-              <RadioButton Style="{StaticResource NavButtonStyle}">
-                <StackPanel Orientation="Horizontal">
-                  <TextBlock Width="40" FontFamily="Segoe UI Symbol" FontSize="22" Text="♨" />
-                  <TextBlock FontSize="17" Text="温度监控" />
-                </StackPanel>
-              </RadioButton>
-              <RadioButton Style="{StaticResource NavButtonStyle}">
-                <StackPanel Orientation="Horizontal">
-                  <TextBlock Width="40" FontFamily="Segoe UI Symbol" FontSize="22" Text="✺" />
-                  <TextBlock FontSize="17" Text="风扇控制" />
-                </StackPanel>
-              </RadioButton>
-              <RadioButton Style="{StaticResource NavButtonStyle}">
-                <StackPanel Orientation="Horizontal">
-                  <TextBlock Width="40" FontFamily="Segoe Fluent Icons" FontSize="22" Text="&#xE9D2;" />
-                  <TextBlock FontSize="17" Text="性能模式" />
-                </StackPanel>
-              </RadioButton>
-              <RadioButton Style="{StaticResource NavButtonStyle}">
-                <StackPanel Orientation="Horizontal">
-                  <TextBlock Width="40" FontFamily="Segoe Fluent Icons" FontSize="22" Text="&#xE713;" />
-                  <TextBlock FontSize="17" Text="设置" />
-                </StackPanel>
-              </RadioButton>
-              <RadioButton Style="{StaticResource NavButtonStyle}">
-                <StackPanel Orientation="Horizontal">
-                  <TextBlock Width="40" FontFamily="Segoe Fluent Icons" FontSize="22" Text="&#xE9D5;" />
-                  <TextBlock FontSize="17" Text="日志" />
-                </StackPanel>
-              </RadioButton>
-              <RadioButton Style="{StaticResource NavButtonStyle}">
-                <StackPanel Orientation="Horizontal">
-                  <TextBlock Width="40" FontFamily="Segoe Fluent Icons" FontSize="22" Text="&#xE946;" />
-                  <TextBlock FontSize="17" Text="关于" />
-                </StackPanel>
-              </RadioButton>
+            <TextBlock FontWeight="SemiBold" Foreground="{DynamicResource SuccessBrush}" Text="自动降温" VerticalAlignment="Center" />
+            <ToggleButton AutomationProperties.Name="启用自动降温演示" HorizontalAlignment="Right" IsChecked="{Binding IsAutoCoolingEnabled, Mode=TwoWay}" Style="{StaticResource SwitchStyle}" />
+            <TextBlock Grid.Row="1" Foreground="{DynamicResource TextSecondaryBrush}" Text="{Binding CoolingPolicy, StringFormat=策略：{0}}" VerticalAlignment="Center" />
+            <Button Grid.Row="1" AutomationProperties.Name="打开自动降温设置" HorizontalAlignment="Right" Command="{Binding NavigateCommand}" CommandParameter="performance" Foreground="{DynamicResource BlueBrush}" Background="Transparent" BorderThickness="0" Content="设置" />
+            <Border Grid.Row="2" Background="{DynamicResource DividerBrush}" />
+            <StackPanel Grid.Row="3" Margin="0,11,0,0">
+              <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" Text="{Binding AutoCoolingStatus}" />
+              <TextBlock Margin="0,12,0,0" Foreground="{DynamicResource TextMutedBrush}" Text="{Binding Dashboard.RuntimeText, StringFormat=已运行： {0}}" />
             </StackPanel>
-
-            <Grid Grid.Row="2" Margin="20,0,18,16">
-              <Grid.RowDefinitions>
-                <RowDefinition Height="204" />
-                <RowDefinition Height="*" />
-              </Grid.RowDefinitions>
-              <Border Grid.Row="0" Style="{StaticResource CardStyle}" Padding="18">
-                <Grid>
-                  <Grid.RowDefinitions>
-                    <RowDefinition Height="44" />
-                    <RowDefinition Height="46" />
-                    <RowDefinition Height="1" />
-                    <RowDefinition Height="*" />
-                  </Grid.RowDefinitions>
-                  <Grid Grid.Row="0">
-                    <TextBlock FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource SuccessBrush}" Text="🛡  自动降温" VerticalAlignment="Center" />
-                    <Border Width="44" Height="24" HorizontalAlignment="Right" Background="{DynamicResource GaugeTrackBrush}" CornerRadius="12">
-                      <Ellipse Width="19" Height="19" Margin="3,0,0,0" HorizontalAlignment="Left" Fill="White" />
-                    </Border>
-                  </Grid>
-                  <Grid Grid.Row="1">
-                    <TextBlock Foreground="{DynamicResource TextSecondaryBrush}" Text="模式：仅监测" VerticalAlignment="Center" />
-                    <TextBlock HorizontalAlignment="Right" Foreground="{DynamicResource BlueBrush}" Text="设置" VerticalAlignment="Center" />
-                  </Grid>
-                  <Border Grid.Row="2" Background="{DynamicResource DividerBrush}" />
-                  <StackPanel Grid.Row="3" Margin="0,14,0,0">
-                    <TextBlock Margin="0,0,0,12" Foreground="{DynamicResource TextSecondaryBrush}" Text="上次触发：无" />
-                    <TextBlock Foreground="{DynamicResource TextSecondaryBrush}" Text="当前状态：待命中" />
-                  </StackPanel>
-                </Grid>
-              </Border>
-              <TextBlock Grid.Row="1"
-                         HorizontalAlignment="Center"
-                         VerticalAlignment="Bottom"
-                         Foreground="{DynamicResource TextMutedBrush}"
-                         Text="{Binding RuntimeText, StringFormat=已运行： {0}}" />
-            </Grid>
-          </Grid>
-        </Border>
-
-        <Grid Grid.Row="0" Grid.Column="1">
-          <Grid.RowDefinitions>
-            <RowDefinition Height="160" />
-            <RowDefinition Height="470" />
-            <RowDefinition Height="342" />
-          </Grid.RowDefinitions>
-
-          <Grid Grid.Row="0" Margin="18,26,22,18">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="882*" />
-              <ColumnDefinition Width="18" />
-              <ColumnDefinition Width="318*" />
-            </Grid.ColumnDefinitions>
-            <Border Grid.Column="0" Style="{StaticResource CardStyle}" Padding="28,0">
-              <Grid>
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="72" />
-                  <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <Border Width="54" Height="62" Background="{Binding SystemLevel, Converter={StaticResource LevelBrushConverter}}" CornerRadius="16" Opacity="0.92">
-                  <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="35" FontWeight="Bold" Foreground="#08230D" Text="✓" />
-                </Border>
-                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                  <StackPanel Orientation="Horizontal">
-                    <TextBlock FontSize="27" FontWeight="SemiBold" Text="整机状态：" />
-                    <TextBlock FontSize="27"
-                               FontWeight="SemiBold"
-                               Foreground="{Binding SystemLevel, Converter={StaticResource LevelBrushConverter}}"
-                               Text="{Binding SystemStatus}" />
-                  </StackPanel>
-                  <TextBlock Margin="0,5,0,0" FontSize="16" Foreground="{DynamicResource TextSecondaryBrush}" Text="{Binding SystemMessage}" />
-                </StackPanel>
-              </Grid>
-            </Border>
-            <Border Grid.Column="2" Margin="0,39,0,0" Style="{StaticResource CardStyle}" Padding="18,0">
-              <Grid>
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="64" />
-                  <ColumnDefinition />
-                  <ColumnDefinition Width="24" />
-                </Grid.ColumnDefinitions>
-                <Border Width="50" Height="50" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="25">
-                  <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontFamily="Segoe Fluent Icons" FontSize="26" Foreground="{DynamicResource BlueBrush}" Text="&#xE9D2;" />
-                </Border>
-                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                  <TextBlock FontSize="17" FontWeight="SemiBold" Text="当前模式：均衡模式" />
-                  <TextBlock Margin="0,5,0,0" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" Text="Fn + Q 可切换性能模式" />
-                </StackPanel>
-                <TextBlock Grid.Column="2" FontFamily="Segoe Fluent Icons" Foreground="{DynamicResource TextSecondaryBrush}" Text="&#xE70D;" VerticalAlignment="Center" />
-              </Grid>
-            </Border>
-          </Grid>
-
-          <Grid Grid.Row="1" Margin="18,0,22,18">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition />
-              <ColumnDefinition Width="18" />
-              <ColumnDefinition />
-              <ColumnDefinition Width="18" />
-              <ColumnDefinition />
-            </Grid.ColumnDefinitions>
-            <views:HardwareCardView Grid.Column="0" DataContext="{Binding Cpu}" />
-            <views:HardwareCardView Grid.Column="2" DataContext="{Binding Gpu}" />
-            <views:HardwareCardView Grid.Column="4" DataContext="{Binding Storage}" />
-          </Grid>
-
-          <Grid Grid.Row="2" Margin="18,0,22,30">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="1.05*" />
-              <ColumnDefinition Width="18" />
-              <ColumnDefinition Width="1.17*" />
-              <ColumnDefinition Width="18" />
-              <ColumnDefinition Width="0.92*" />
-            </Grid.ColumnDefinitions>
-
-            <Border Grid.Column="0" Style="{StaticResource CardStyle}" Padding="20">
-              <Grid>
-                <Grid.RowDefinitions>
-                  <RowDefinition Height="44" />
-                  <RowDefinition Height="*" />
-                  <RowDefinition Height="48" />
-                </Grid.RowDefinitions>
-                <TextBlock FontSize="20" FontWeight="SemiBold" Text="整机状态" />
-                <Grid Grid.Row="1">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="125" />
-                    <ColumnDefinition />
-                  </Grid.ColumnDefinitions>
-                  <Border Width="102" Height="102" BorderBrush="{Binding SystemLevel, Converter={StaticResource LevelBrushConverter}}" BorderThickness="12" CornerRadius="51" Opacity="0.85">
-                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="45" FontWeight="Bold" Foreground="{Binding SystemLevel, Converter={StaticResource LevelBrushConverter}}" Text="✓" />
-                  </Border>
-                  <Grid Grid.Column="1" Margin="8,0,0,0">
-                    <Grid.RowDefinitions>
-                      <RowDefinition />
-                      <RowDefinition />
-                      <RowDefinition />
-                      <RowDefinition />
-                      <RowDefinition />
-                    </Grid.RowDefinitions>
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition />
-                      <ColumnDefinition Width="76" />
-                      <ColumnDefinition Width="62" />
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Style="{StaticResource MetricLabelStyle}" Text="CPU温度" />
-                    <TextBlock Grid.Column="1" Foreground="{Binding Cpu.Level, Converter={StaticResource LevelBrushConverter}}" Text="{Binding Cpu.LevelText}" VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="2" Text="{Binding Cpu.CurrentText}" VerticalAlignment="Center" />
-                    <TextBlock Grid.Row="1" Style="{StaticResource MetricLabelStyle}" Text="GPU温度" />
-                    <TextBlock Grid.Row="1" Grid.Column="1" Foreground="{Binding Gpu.Level, Converter={StaticResource LevelBrushConverter}}" Text="{Binding Gpu.LevelText}" VerticalAlignment="Center" />
-                    <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding Gpu.CurrentText}" VerticalAlignment="Center" />
-                    <TextBlock Grid.Row="2" Style="{StaticResource MetricLabelStyle}" Text="SSD温度" />
-                    <TextBlock Grid.Row="2" Grid.Column="1" Foreground="{Binding Storage.Level, Converter={StaticResource LevelBrushConverter}}" Text="{Binding Storage.LevelText}" VerticalAlignment="Center" />
-                    <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding Storage.CurrentText}" VerticalAlignment="Center" />
-                    <TextBlock Grid.Row="3" Style="{StaticResource MetricLabelStyle}" Text="系统负载" />
-                    <TextBlock Grid.Row="3" Grid.Column="1" Foreground="{DynamicResource SuccessBrush}" Text="正常" VerticalAlignment="Center" />
-                    <TextBlock Grid.Row="3" Grid.Column="2" Text="{Binding Cpu.LoadText}" VerticalAlignment="Center" />
-                    <TextBlock Grid.Row="4" Style="{StaticResource MetricLabelStyle}" Text="内存使用" />
-                    <TextBlock Grid.Row="4" Grid.Column="1" Foreground="{DynamicResource SuccessBrush}" Text="正常" VerticalAlignment="Center" />
-                    <TextBlock Grid.Row="4" Grid.Column="2" Text="45%" VerticalAlignment="Center" />
-                  </Grid>
-                </Grid>
-                <Border Grid.Row="2" Background="{DynamicResource SurfaceAltBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="9" Padding="12,0">
-                  <TextBlock VerticalAlignment="Center">
-                    <Run FontWeight="Bold" Foreground="{Binding SystemLevel, Converter={StaticResource LevelBrushConverter}}" Text="太棒了！ " />
-                    <Run Foreground="{DynamicResource TextSecondaryBrush}" Text="所有硬件温度都在正常范围内。" />
-                  </TextBlock>
-                </Border>
-              </Grid>
-            </Border>
-
-            <Border Grid.Column="2" Style="{StaticResource CardStyle}" Padding="20">
-              <Grid>
-                <Grid.RowDefinitions>
-                  <RowDefinition Height="44" />
-                  <RowDefinition Height="30" />
-                  <RowDefinition />
-                  <RowDefinition />
-                  <RowDefinition />
-                  <RowDefinition Height="42" />
-                </Grid.RowDefinitions>
-                <TextBlock FontSize="20" FontWeight="SemiBold" Text="温度预警" />
-                <Grid Grid.Row="1">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="64" />
-                    <ColumnDefinition Width="88" />
-                    <ColumnDefinition Width="68" />
-                    <ColumnDefinition />
-                  </Grid.ColumnDefinitions>
-                  <TextBlock Foreground="{DynamicResource TextMutedBrush}" Text="硬件" />
-                  <TextBlock Grid.Column="1" Foreground="{DynamicResource TextMutedBrush}" Text="当前温度" />
-                  <TextBlock Grid.Column="2" Foreground="{DynamicResource TextMutedBrush}" Text="状态" />
-                </Grid>
-                <Grid Grid.Row="2" Margin="0,4">
-                  <Grid.ColumnDefinitions><ColumnDefinition Width="64" /><ColumnDefinition Width="88" /><ColumnDefinition Width="68" /><ColumnDefinition /></Grid.ColumnDefinitions>
-                  <TextBlock FontSize="17" Text="CPU" VerticalAlignment="Center" />
-                  <TextBlock Grid.Column="1" FontSize="17" Text="{Binding Cpu.CurrentText}" VerticalAlignment="Center" />
-                  <TextBlock Grid.Column="2" Foreground="{Binding Cpu.Level, Converter={StaticResource LevelBrushConverter}}" Text="{Binding Cpu.LevelText}" VerticalAlignment="Center" />
-                  <Border Grid.Column="3" Height="9" CornerRadius="5" VerticalAlignment="Center">
-                    <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#36CC88" Offset="0" /><GradientStop Color="#F2CF3A" Offset="0.42" /><GradientStop Color="#FF8A22" Offset="0.7" /><GradientStop Color="#FF3445" Offset="1" /></LinearGradientBrush></Border.Background>
-                  </Border>
-                </Grid>
-                <Grid Grid.Row="3" Margin="0,4">
-                  <Grid.ColumnDefinitions><ColumnDefinition Width="64" /><ColumnDefinition Width="88" /><ColumnDefinition Width="68" /><ColumnDefinition /></Grid.ColumnDefinitions>
-                  <TextBlock FontSize="17" Text="GPU" VerticalAlignment="Center" />
-                  <TextBlock Grid.Column="1" FontSize="17" Text="{Binding Gpu.CurrentText}" VerticalAlignment="Center" />
-                  <TextBlock Grid.Column="2" Foreground="{Binding Gpu.Level, Converter={StaticResource LevelBrushConverter}}" Text="{Binding Gpu.LevelText}" VerticalAlignment="Center" />
-                  <Border Grid.Column="3" Height="9" CornerRadius="5" VerticalAlignment="Center">
-                    <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#36CC88" Offset="0" /><GradientStop Color="#F2CF3A" Offset="0.42" /><GradientStop Color="#FF8A22" Offset="0.7" /><GradientStop Color="#FF3445" Offset="1" /></LinearGradientBrush></Border.Background>
-                  </Border>
-                </Grid>
-                <Grid Grid.Row="4" Margin="0,4">
-                  <Grid.ColumnDefinitions><ColumnDefinition Width="64" /><ColumnDefinition Width="88" /><ColumnDefinition Width="68" /><ColumnDefinition /></Grid.ColumnDefinitions>
-                  <TextBlock FontSize="17" Text="SSD" VerticalAlignment="Center" />
-                  <TextBlock Grid.Column="1" FontSize="17" Text="{Binding Storage.CurrentText}" VerticalAlignment="Center" />
-                  <TextBlock Grid.Column="2" Foreground="{Binding Storage.Level, Converter={StaticResource LevelBrushConverter}}" Text="{Binding Storage.LevelText}" VerticalAlignment="Center" />
-                  <Border Grid.Column="3" Height="9" CornerRadius="5" VerticalAlignment="Center">
-                    <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#36CC88" Offset="0" /><GradientStop Color="#F2CF3A" Offset="0.42" /><GradientStop Color="#FF8A22" Offset="0.7" /><GradientStop Color="#FF3445" Offset="1" /></LinearGradientBrush></Border.Background>
-                  </Border>
-                </Grid>
-                <StackPanel Grid.Row="5" Orientation="Horizontal" VerticalAlignment="Bottom">
-                  <TextBlock Margin="0,0,24,0" Foreground="{DynamicResource TextSecondaryBrush}" Text="● 正常" />
-                  <TextBlock Margin="0,0,24,0" Foreground="{DynamicResource WarningBrush}" Text="● 偏高" />
-                  <TextBlock Margin="0,0,24,0" Foreground="{DynamicResource HighBrush}" Text="● 过高" />
-                  <TextBlock Foreground="{DynamicResource CriticalBrush}" Text="● 严重过热" />
-                </StackPanel>
-              </Grid>
-            </Border>
-
-            <Border Grid.Column="4" Style="{StaticResource CardStyle}" Padding="20">
-              <Grid>
-                <Grid.RowDefinitions>
-                  <RowDefinition Height="44" />
-                  <RowDefinition />
-                </Grid.RowDefinitions>
-                <TextBlock FontSize="20" FontWeight="SemiBold" Text="快捷操作" />
-                <StackPanel Grid.Row="1">
-                  <Button Style="{StaticResource QuickButtonStyle}">
-                    <Grid><TextBlock Text="⚙  打开温控设置" /><TextBlock HorizontalAlignment="Right" Text="›" /></Grid>
-                  </Button>
-                  <Button Style="{StaticResource QuickButtonStyle}" Background="{DynamicResource PurpleSoftBrush}" BorderBrush="{DynamicResource PurpleBrush}" Foreground="{DynamicResource PurpleTextBrush}">
-                    <Grid><TextBlock Text="⚖  切换性能模式" /><TextBlock HorizontalAlignment="Right" Text="›" /></Grid>
-                  </Button>
-                  <Button Command="{Binding ExportHistoryCommand}"
-                          ToolTip="{Binding LastHistoryExportPath}"
-                          Style="{StaticResource QuickButtonStyle}"
-                          Background="{DynamicResource InfoSoftBrush}"
-                          BorderBrush="{DynamicResource InfoBrush}"
-                          Foreground="{DynamicResource InfoTextBrush}">
-                    <Grid><TextBlock Text="{Binding HistoryExportActionText}" /><TextBlock HorizontalAlignment="Right" Text="›" /></Grid>
-                  </Button>
-                  <Button Style="{StaticResource QuickButtonStyle}" Background="{DynamicResource CriticalSoftBrush}" BorderBrush="{DynamicResource CriticalBrush}" Foreground="{DynamicResource CriticalTextBrush}">
-                    <Grid><TextBlock Text="↶  一键恢复默认设置" /><TextBlock HorizontalAlignment="Right" Text="›" /></Grid>
-                  </Button>
-                </StackPanel>
-              </Grid>
-            </Border>
-          </Grid>
-
-          <Grid Height="54"
-                HorizontalAlignment="Right"
-                VerticalAlignment="Top"
-                Panel.ZIndex="100"
-                MouseLeftButtonDown="DragArea_MouseLeftButtonDown">
-            <StackPanel Orientation="Horizontal">
-              <Button x:Name="ThemeButton"
-                      Width="95"
-                      Height="30"
-                      Margin="0,7,12,0"
-                      Click="ThemeButton_Click"
-                      Content="☾  深色"
-                      FontFamily="{StaticResource AppFont}"
-                      FontSize="13"
-                      Style="{StaticResource WindowButtonStyle}" />
-              <Button AutomationProperties.Name="最小化"
-                      Click="MinimizeButton_Click"
-                      Style="{StaticResource WindowButtonStyle}">
-                <Rectangle Width="13"
-                           Height="1.5"
-                           Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                           SnapsToDevicePixels="True" />
-              </Button>
-              <Button AutomationProperties.Name="最大化"
-                      Click="MaximizeButton_Click"
-                      Style="{StaticResource WindowButtonStyle}">
-                <Border Width="12"
-                        Height="12"
-                        BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                        BorderThickness="1.5" />
-              </Button>
-              <Button AutomationProperties.Name="关闭"
-                      Click="CloseButton_Click"
-                      Style="{StaticResource CloseWindowButtonStyle}">
-                <Grid Width="14" Height="14">
-                  <Rectangle Width="16"
-                             Height="1.5"
-                             Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                             RenderTransformOrigin="0.5,0.5">
-                    <Rectangle.RenderTransform>
-                      <RotateTransform Angle="45" />
-                    </Rectangle.RenderTransform>
-                  </Rectangle>
-                  <Rectangle Width="16"
-                             Height="1.5"
-                             Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                             RenderTransformOrigin="0.5,0.5">
-                    <Rectangle.RenderTransform>
-                      <RotateTransform Angle="-45" />
-                    </Rectangle.RenderTransform>
-                  </Rectangle>
-                </Grid>
-              </Button>
-            </StackPanel>
-          </Grid>
-        </Grid>
-
-        <Border Grid.Row="1" Grid.ColumnSpan="2" Background="{DynamicResource SidebarBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
-          <Grid Margin="34,0">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition />
-              <ColumnDefinition />
-              <ColumnDefinition />
-              <ColumnDefinition />
-              <ColumnDefinition />
-            </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" Foreground="{DynamicResource TextSecondaryBrush}" Text="▦  Windows 11 专业版  64位" VerticalAlignment="Center" />
-            <TextBlock Grid.Column="1" Foreground="{DynamicResource TextSecondaryBrush}" Text="▣  Lenovo 拯救者 Y9000P 2021" VerticalAlignment="Center" />
-            <TextBlock Grid.Column="2" Foreground="{DynamicResource TextSecondaryBrush}" Text="▣  电源模式：平衡" VerticalAlignment="Center" />
-            <TextBlock Grid.Column="3" Foreground="{DynamicResource TextSecondaryBrush}" Text="▣  电量：98%" VerticalAlignment="Center" />
-            <TextBlock Grid.Column="4" HorizontalAlignment="Right" Foreground="{DynamicResource TextSecondaryBrush}" Text="♣  已连接电源" VerticalAlignment="Center" />
           </Grid>
         </Border>
       </Grid>
-    </Viewbox>
+    </Border>
+
+    <Grid Grid.Row="1" Grid.Column="1">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="*" />
+        <RowDefinition Height="34" />
+      </Grid.RowDefinitions>
+      <ContentControl Content="{Binding CurrentPage}" />
+      <Border Grid.Row="1" Background="{DynamicResource SidebarBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
+        <Grid Margin="22,0">
+          <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>
+          <TextBlock Foreground="{DynamicResource TextMutedBrush}" Text="Windows 11 专业版 64 位" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1" Foreground="{DynamicResource TextMutedBrush}" Text="Lenovo 拯救者 Y9000P 2021" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="2" Foreground="{DynamicResource TextMutedBrush}" Text="电源模式：平衡（只读）" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="3" HorizontalAlignment="Right" Foreground="{DynamicResource TextMutedBrush}" Text="已连接电源" VerticalAlignment="Center" />
+        </Grid>
+      </Border>
+    </Grid>
   </Grid>
 </Window>
