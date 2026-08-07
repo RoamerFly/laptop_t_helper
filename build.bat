@@ -9,35 +9,19 @@ set "SOLUTION=LaptopThermalHelper.sln"
 set "OUTPUT_DIR=%CD%\dist_windows"
 
 echo [1/6] Checking .NET 10 SDK...
-if defined DOTNET_EXE goto check_dotnet
-
-where dotnet >nul 2>nul
-if not errorlevel 1 (
-    set "DOTNET_EXE=dotnet"
-    goto check_dotnet
-)
-
-if exist "%ProgramFiles%\dotnet\dotnet.exe" (
-    set "DOTNET_EXE=%ProgramFiles%\dotnet\dotnet.exe"
-    goto check_dotnet
-)
-
-echo ERROR: .NET 10 SDK was not found.
-echo Install it from https://dotnet.microsoft.com/download/dotnet/10.0
-goto failed
-
-:check_dotnet
+set "REQUESTED_DOTNET=%DOTNET_EXE%"
+set "DOTNET_EXE="
 set "SDK_VERSION="
-for /f "delims=" %%V in ('"%DOTNET_EXE%" --version 2^>nul') do set "SDK_VERSION=%%V"
-if not defined SDK_VERSION (
-    echo ERROR: Unable to run "%DOTNET_EXE%".
-    goto failed
-)
-if not "%SDK_VERSION:~0,3%"=="10." (
-    echo ERROR: .NET 10 SDK is required, but %SDK_VERSION% was selected.
-    echo Install it from https://dotnet.microsoft.com/download/dotnet/10.0
-    goto failed
-)
+
+if defined REQUESTED_DOTNET call :try_dotnet "%REQUESTED_DOTNET%"
+call :try_dotnet "%~dp0..\..\Tools\dotnet10\dotnet.exe"
+call :try_dotnet "%~dp0.dotnet\dotnet.exe"
+for /f "delims=" %%D in ('where dotnet 2^>nul') do call :try_dotnet "%%D"
+call :try_dotnet "%ProgramW6432%\dotnet\dotnet.exe"
+call :try_dotnet "%ProgramFiles%\dotnet\dotnet.exe"
+call :try_dotnet "%LocalAppData%\Microsoft\dotnet\dotnet.exe"
+
+if not defined DOTNET_EXE goto dotnet_missing
 echo Using .NET SDK %SDK_VERSION%.
 
 echo [2/6] Checking LibreHardwareMonitor submodule...
@@ -62,6 +46,11 @@ if errorlevel 1 goto command_failed
 if errorlevel 1 goto command_failed
 
 echo [5/6] Preparing output directory...
+set "PROCESS_FILE=%TEMP%\laptop-thermal-helper-process-%RANDOM%-%RANDOM%.tmp"
+tasklist /fi "IMAGENAME eq LaptopThermalHelper.App.exe" /fo csv /nh >"%PROCESS_FILE%" 2>nul
+findstr /i /l /c:"LaptopThermalHelper.App.exe" "%PROCESS_FILE%" >nul
+if not errorlevel 1 goto app_running
+del /q "%PROCESS_FILE%" >nul 2>nul
 if exist "%OUTPUT_DIR%" rmdir /s /q "%OUTPUT_DIR%"
 if exist "%OUTPUT_DIR%" (
     echo ERROR: Unable to clean "%OUTPUT_DIR%".
@@ -100,3 +89,30 @@ echo ERROR: A build command failed with exit code %ERRORLEVEL%.
 echo Build failed.
 pause
 exit /b 1
+
+:dotnet_missing
+echo ERROR: A compatible .NET 10 SDK was not found.
+echo Install it from https://dotnet.microsoft.com/download/dotnet/10.0
+goto failed
+
+:app_running
+if exist "%PROCESS_FILE%" del /q "%PROCESS_FILE%" >nul 2>nul
+echo ERROR: LaptopThermalHelper.App.exe is currently running.
+echo Close the application, then run build.bat again.
+goto failed
+
+:try_dotnet
+if defined DOTNET_EXE exit /b 0
+if "%~1"=="" exit /b 0
+set "VERSION_FILE=%TEMP%\laptop-thermal-helper-dotnet-%RANDOM%-%RANDOM%.tmp"
+set "CANDIDATE_VERSION="
+"%~1" --version >"%VERSION_FILE%" 2>nul
+if errorlevel 1 goto try_dotnet_failed
+set /p "CANDIDATE_VERSION=" <"%VERSION_FILE%"
+if not "%CANDIDATE_VERSION:~0,3%"=="10." goto try_dotnet_failed
+set "DOTNET_EXE=%~1"
+set "SDK_VERSION=%CANDIDATE_VERSION%"
+
+:try_dotnet_failed
+if exist "%VERSION_FILE%" del /q "%VERSION_FILE%" >nul 2>nul
+exit /b 0
