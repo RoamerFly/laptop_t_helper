@@ -48,6 +48,18 @@ public interface IProcessorPowerPlanApi
         int maximumProcessorStatePercent,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Originally called <c>PowerSetActiveScheme</c> to force the written
+    /// processor-state values to take effect. However, that API re-applies
+    /// <em>all</em> power-settings sub-groups—including display brightness—
+    /// which caused the screen to flicker between brightness levels every
+    /// time auto-cooling applied or restored a limit.
+    /// <para>
+    /// <c>PowerWriteACValueIndex</c> / <c>PowerWriteDCValueIndex</c> already
+    /// apply to the active scheme and take effect immediately, so this call
+    /// is now a no-op that only validates the GUID.
+    /// </para>
+    /// </summary>
     Task ReapplyActiveSchemeAsync(string schemeGuid, CancellationToken cancellationToken = default);
 }
 
@@ -295,18 +307,14 @@ public sealed class WindowsProcessorPowerPlanApi : IProcessorPowerPlanApi
 
     public async Task ReapplyActiveSchemeAsync(string schemeGuid, CancellationToken cancellationToken = default)
     {
-        Guid parsedSchemeGuid = ParseSchemeGuid(schemeGuid);
-        if (!await ShouldUsePowerCfgFallbackAsync(cancellationToken).ConfigureAwait(false))
-        {
-            ThrowIfPowerStatusFailed(
-                NativeMethods.PowerSetActiveScheme(IntPtr.Zero, ref parsedSchemeGuid),
-                "重新应用当前电源计划");
-            return;
-        }
-
-        await _powerCfgCommandRunner
-            .RunAsync(["/setactive", parsedSchemeGuid.ToString("D")], cancellationToken)
-            .ConfigureAwait(false);
+        // PowerWriteACValueIndex / PowerWriteDCValueIndex already apply to the
+        // active scheme and take effect immediately. Previously this method
+        // called PowerSetActiveScheme to "force" the new values, but that API
+        // re-applies *all* power-settings sub-groups (display brightness,
+        // adaptive brightness, etc.), which caused the screen to flicker.
+        // The scheme GUID is still validated so that a stale snapshot is
+        // detected early, but no system call is made.
+        await Task.Run(() => ParseSchemeGuid(schemeGuid), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<bool> ShouldUsePowerCfgFallbackAsync(CancellationToken cancellationToken)
@@ -451,9 +459,6 @@ public sealed class WindowsProcessorPowerPlanApi : IProcessorPowerPlanApi
             ref Guid subGroupOfPowerSettingsGuid,
             ref Guid powerSettingGuid,
             uint dcValueIndex);
-
-        [DllImport("PowrProf.dll")]
-        internal static extern uint PowerSetActiveScheme(IntPtr userRootPowerKey, ref Guid schemeGuid);
 
         [DllImport("kernel32.dll")]
         internal static extern IntPtr LocalFree(IntPtr memory);
