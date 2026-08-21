@@ -400,11 +400,19 @@
       <Setter.Value>
         <ControlTemplate TargetType="ComboBox">
           <Grid>
+            <ToggleButton x:Name="DropDownToggle"
+                          Focusable="False"
+                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                          ClickMode="Press"
+                          Background="Transparent"
+                          BorderThickness="0"
+                          Panel.ZIndex="1" />
             <Border x:Name="Root"
                     Background="{TemplateBinding Background}"
                     BorderBrush="{TemplateBinding BorderBrush}"
                     BorderThickness="{TemplateBinding BorderThickness}"
                     CornerRadius="8"
+                    IsHitTestVisible="False"
                     RenderTransformOrigin="0.5,0.5">
               <Border.RenderTransform><ScaleTransform /></Border.RenderTransform>
               <Grid>
