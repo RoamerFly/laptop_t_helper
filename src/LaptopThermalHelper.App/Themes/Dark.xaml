@@ -22,7 +22,6 @@
   <SolidColorBrush x:Key="SuccessBrush" Color="#31D843" />
   <SolidColorBrush x:Key="WarningBrush" Color="#F6C52F" />
   <SolidColorBrush x:Key="WarningSoftBrush" Color="#3D3900" />
-  <SolidColorBrush x:Key="WarningSoftBrush" Color="#3D3900" />
   <SolidColorBrush x:Key="HighBrush" Color="#FF8A22" />
   <SolidColorBrush x:Key="CriticalBrush" Color="#FF3B45" />
   <SolidColorBrush x:Key="CriticalSoftBrush" Color="#76242A" />
