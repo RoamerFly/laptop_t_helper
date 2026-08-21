@@ -5,6 +5,7 @@
              xmlns:views="clr-namespace:LaptopThermalHelper.App.Views">
   <UserControl.Resources>
     <converters:ThermalLevelToBrushConverter x:Key="LevelBrushConverter" />
+    <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
   </UserControl.Resources>
   <ScrollViewer VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
     <StackPanel Margin="18,16,22,24">
@@ -49,6 +50,21 @@
         <views:HardwareCardView Grid.Column="2" Height="470" DataContext="{Binding Dashboard.Gpu}" />
         <views:HardwareCardView Grid.Column="4" Height="470" DataContext="{Binding Dashboard.Storage}" />
       </Grid>
+
+      <Border Margin="0,0,0,16" Style="{StaticResource CardStyle}" Padding="20,16" Visibility="{Binding IsIntelGpuDriverTooOld, Converter={StaticResource BoolToVisibilityConverter}}">
+        <Grid>
+          <Grid.ColumnDefinitions><ColumnDefinition Width="48" /><ColumnDefinition /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+          <Border Width="40" Height="40" Background="{DynamicResource WarningSoftBrush}" CornerRadius="20">
+            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="22" Foreground="{DynamicResource WarningBrush}" Text="&#xE7BA;" />
+          </Border>
+          <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
+            <TextBlock FontSize="16" FontWeight="SemiBold" Text="核显温度无法读取 — 驱动过旧" />
+            <TextBlock Margin="0,4,0,0" FontSize="13" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" Text="{Binding IntelGpuDriverStatusText}" />
+          </StackPanel>
+          <Button Grid.Column="2" AutomationProperties.Name="打开 Intel 驱动下载页" Command="{Binding OpenIntelDriverDownloadPageCommand}" Style="{StaticResource SecondaryButtonStyle}" Content="打开下载页" Margin="0,0,10,0" />
+          <Button Grid.Column="3" AutomationProperties.Name="运行内置 Intel 驱动安装器" Command="{Binding RunIntelDsaInstallerCommand}" Style="{StaticResource SecondaryButtonStyle}" Content="一键安装驱动" Visibility="{Binding IsIntelDsaAvailable, Converter={StaticResource BoolToVisibilityConverter}}" />
+        </Grid>
+      </Border>
 
       <Grid>
         <Grid.ColumnDefinitions><ColumnDefinition Width="1.05*" /><ColumnDefinition Width="16" /><ColumnDefinition Width="1.12*" /><ColumnDefinition Width="16" /><ColumnDefinition Width="0.9*" /></Grid.ColumnDefinitions>

@@ -68,6 +68,16 @@ if errorlevel 1 goto command_failed
 copy /y "LICENSE" "%OUTPUT_DIR%\LICENSE.txt" >nul
 xcopy "LICENSES" "%OUTPUT_DIR%\LICENSES\" /e /i /y >nul
 
+copy /y "LibreHardwareMonitor\LibreHardwareMonitor.Windows.Forms\Resources\PawnIO_setup.exe" "%OUTPUT_DIR%\PawnIO_setup.exe" >nul
+
+REM Optional: copy Intel Driver & Support Assistant installer if it has been
+REM placed in the project root as IntelDSA_setup.exe.  When absent the app
+REM falls back to the "open download page" button.
+if exist "IntelDSA_setup.exe" (
+    copy /y "IntelDSA_setup.exe" "%OUTPUT_DIR%\IntelDSA_setup.exe" >nul
+    echo Copied IntelDSA_setup.exe to output.
+)
+
 if not exist "%OUTPUT_DIR%\LaptopThermalHelper.App.exe" (
     echo ERROR: Publish completed without the expected executable.
     goto failed

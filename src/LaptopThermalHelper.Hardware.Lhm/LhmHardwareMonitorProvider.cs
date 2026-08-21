@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using System.Text.Json;
 using LaptopThermalHelper.Application.Hardware;
 using LaptopThermalHelper.Core.Domain;
 using LibreHardwareMonitor.Hardware;
+using Microsoft.Win32;
 
 namespace LaptopThermalHelper.Hardware.Lhm;
 
@@ -119,8 +121,47 @@ public sealed class LhmHardwareMonitorProvider : IHardwareMonitorProvider, IHard
             return;
         }
 
+        EnsurePawnIoInstalled();
         _computer.Open();
         _isOpen = true;
+    }
+
+    private static void EnsurePawnIoInstalled()
+    {
+        try
+        {
+            using RegistryKey? key = Registry.LocalMachine.OpenSubKey(
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\PawnIO");
+            if (key?.GetValue("DisplayVersion") is string versionStr &&
+                Version.TryParse(versionStr, out Version? version) &&
+                version >= new Version(2, 0, 0, 0))
+            {
+                return; // PawnIO 已安装且版本足够
+            }
+        }
+        catch
+        {
+            // 注册表读取失败，继续尝试安装
+        }
+
+        // 提取并运行 PawnIO 安装包
+        string setupPath = Path.Combine(AppContext.BaseDirectory, "PawnIO_setup.exe");
+        if (!File.Exists(setupPath))
+        {
+            return; // 安装包不在发布目录中，静默跳过
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(setupPath, "-install")
+            {
+                UseShellExecute = true,
+            })?.WaitForExit();
+        }
+        catch
+        {
+            // 安装失败不中断启动——硬件温度将不可用，但不会崩溃
+        }
     }
 
     private static void UpdateRecursively(IHardware hardware)

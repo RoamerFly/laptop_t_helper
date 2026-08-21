@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LaptopThermalHelper.App.Services;
@@ -21,6 +23,7 @@ public partial class ShellViewModel : ObservableObject
     private readonly SystemIntegrationService _systemIntegrationService;
     private readonly IApplicationEventLog _eventLog;
     private readonly IApplicationRuntimeInfo _runtimeInfo;
+    private readonly IIntelGpuDriverDetector _intelGpuDriverDetector;
     private bool _applyingStoredSettings;
     private bool _isLogDisplayCleared;
 
@@ -30,7 +33,8 @@ public partial class ShellViewModel : ObservableObject
         ISystemInformationProvider systemInformationProvider,
         SystemIntegrationService systemIntegrationService,
         IApplicationEventLog eventLog,
-        IApplicationRuntimeInfo runtimeInfo)
+        IApplicationRuntimeInfo runtimeInfo,
+        IIntelGpuDriverDetector intelGpuDriverDetector)
     {
         Dashboard = dashboard;
         TemperatureDetail = new TemperatureDetailViewModel(dashboard, historyBuffer);
@@ -38,6 +42,7 @@ public partial class ShellViewModel : ObservableObject
         _systemIntegrationService = systemIntegrationService;
         _eventLog = eventLog;
         _runtimeInfo = runtimeInfo;
+        _intelGpuDriverDetector = intelGpuDriverDetector;
         NavigationItems =
         [
             new NavigationItem("dashboard", "总览", "\uE80F", new DashboardPage()),
@@ -171,6 +176,15 @@ public partial class ShellViewModel : ObservableObject
 
     [ObservableProperty]
     private string? _systemInformationDiagnostic;
+
+    [ObservableProperty]
+    private bool _isIntelGpuDriverTooOld;
+
+    [ObservableProperty]
+    private string _intelGpuDriverStatusText = "正在检测 Intel 核显驱动…";
+
+    [ObservableProperty]
+    private bool _isIntelDsaAvailable;
 
     partial void OnSelectedNavigationChanged(NavigationItem? value)
     {
@@ -356,6 +370,76 @@ public partial class ShellViewModel : ObservableObject
         AddLog("关于", OperationFeedback, ApplicationEventLevel.Information);
     }
 
+    [RelayCommand]
+    private void OpenIntelDriverDownloadPage()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://www.intel.com/content/www/us/en/support/intel-driver-support-assistant.html",
+                UseShellExecute = true,
+            });
+            OperationFeedback = "已在浏览器中打开 Intel 驱动与支持助理页面。下载并安装后重启电脑，核显温度即可读取。";
+            AddLog("驱动检测", "用户打开了 Intel 驱动下载页面", ApplicationEventLevel.Information);
+        }
+        catch (Exception ex)
+        {
+            OperationFeedback = $"无法打开浏览器：{ex.Message}";
+            AddLog("驱动检测", OperationFeedback, ApplicationEventLevel.Warning);
+        }
+    }
+
+    [RelayCommand]
+    private void RunIntelDsaInstaller()
+    {
+        string dsaPath = Path.Combine(AppContext.BaseDirectory, "IntelDSA_setup.exe");
+        if (!File.Exists(dsaPath))
+        {
+            OperationFeedback = "未找到内置 Intel 驱动安装器，请使用“打开下载页”按钮在线安装。";
+            AddLog("驱动检测", "内置 Intel DSA 安装器不存在", ApplicationEventLevel.Warning);
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(dsaPath)
+            {
+                UseShellExecute = true,
+            });
+            OperationFeedback = "已启动 Intel 驱动与支持助理安装器，请按提示完成安装后重启电脑。";
+            AddLog("驱动检测", "用户启动了内置 Intel DSA 安装器", ApplicationEventLevel.Information);
+        }
+        catch (Exception ex)
+        {
+            OperationFeedback = $"无法启动安装器：{ex.Message}";
+            AddLog("驱动检测", OperationFeedback, ApplicationEventLevel.Warning);
+        }
+    }
+
+    private async Task DetectIntelGpuDriverAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            IntelGpuDriverInfo info = await _intelGpuDriverDetector.DetectAsync(cancellationToken);
+            IsIntelGpuDriverTooOld = info.IsTooOld;
+            IntelGpuDriverStatusText = info.Summary;
+            IsIntelDsaAvailable = File.Exists(Path.Combine(AppContext.BaseDirectory, "IntelDSA_setup.exe"));
+            if (info.IsTooOld)
+            {
+                AddLog("驱动检测", info.Summary, ApplicationEventLevel.Warning);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            IntelGpuDriverStatusText = $"检测 Intel 核显驱动失败：{ex.Message}";
+        }
+    }
+
     public async Task InitializeSystemIntegrationAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -374,6 +458,9 @@ public partial class ShellViewModel : ObservableObject
             AutoCoolingStatus = "自动降温未初始化，因此不会修改任何系统设置。";
             AddLog("应用", OperationFeedback, ApplicationEventLevel.Error);
         }
+
+        // 检测 Intel 核显驱动版本，不阻塞主初始化流程
+        _ = DetectIntelGpuDriverAsync(cancellationToken);
     }
 
     public async Task ObserveSystemIntegrationAsync(MonitoringSnapshot snapshot, CancellationToken cancellationToken = default)

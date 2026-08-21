@@ -42,6 +42,7 @@ public partial class App : System.Windows.Application
                 services.AddSingleton<ITemperatureHistoryStore, CsvTemperatureHistoryStore>();
                 services.AddSingleton<ITemperatureHistoryBuffer, RollingTemperatureHistoryBuffer>();
                 services.AddSingleton<ISystemInformationProvider, WindowsSystemInformationProvider>();
+                services.AddSingleton<IIntelGpuDriverDetector, WindowsIntelGpuDriverDetector>();
                 services.AddSingleton<IApplicationSettingsStore, JsonApplicationSettingsStore>();
                 services.AddSingleton<IUserStartupRegistrationService, UserStartupRegistrationService>();
                 services.AddSingleton<IApplicationEventLog, InMemoryApplicationEventLog>();
