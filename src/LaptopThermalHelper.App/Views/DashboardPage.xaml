@@ -46,9 +46,9 @@
 
       <Grid Margin="0,0,0,16">
         <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="16" /><ColumnDefinition /><ColumnDefinition Width="16" /><ColumnDefinition /></Grid.ColumnDefinitions>
-        <views:HardwareCardView Grid.Column="0" Height="470" DataContext="{Binding Dashboard.Cpu}" />
-        <views:HardwareCardView Grid.Column="2" Height="470" DataContext="{Binding Dashboard.Gpu}" />
-        <views:HardwareCardView Grid.Column="4" Height="470" DataContext="{Binding Dashboard.Storage}" />
+        <views:HardwareCardView Grid.Column="0" Height="492" DataContext="{Binding Dashboard.Cpu}" />
+        <views:HardwareCardView Grid.Column="2" Height="492" DataContext="{Binding Dashboard.Gpu}" />
+        <views:HardwareCardView Grid.Column="4" Height="492" DataContext="{Binding Dashboard.Storage}" />
       </Grid>
 
       <Border Margin="0,0,0,16" Style="{StaticResource CardStyle}" Padding="20,16" Visibility="{Binding IsIntelGpuNoticeVisible, Converter={StaticResource BoolToVisibilityConverter}}">

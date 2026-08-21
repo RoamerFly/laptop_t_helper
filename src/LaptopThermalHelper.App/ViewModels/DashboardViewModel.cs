@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -66,9 +67,9 @@ public partial class DashboardViewModel : ObservableObject
         {
             MonitoringSnapshot snapshot = await _coordinator.PollAsync();
             LastSnapshot = snapshot;
-            Cpu.Update(SelectDashboardDevice(snapshot.Devices, DeviceKind.Cpu));
-            Gpu.Update(SelectDashboardDevice(snapshot.Devices, DeviceKind.Gpu));
-            Storage.Update(SelectDashboardDevice(snapshot.Devices, DeviceKind.Storage));
+            Cpu.UpdateDevices(SelectDevices(snapshot.Devices, DeviceKind.Cpu));
+            Gpu.UpdateDevices(SelectDevices(snapshot.Devices, DeviceKind.Gpu));
+            Storage.UpdateDevices(SelectDevices(snapshot.Devices, DeviceKind.Storage));
             SystemLevel = snapshot.SystemLevel;
             (SystemStatus, SystemMessage) = SystemText(snapshot.SystemLevel, snapshot.Status);
             LastUpdatedText = snapshot.Timestamp == DateTimeOffset.MinValue
@@ -129,14 +130,13 @@ public partial class DashboardViewModel : ObservableObject
     }
 
     /// <summary>
-    /// The fixed dashboard cards must prefer an actual temperature-capable
-    /// device of the requested kind. A USB disk or an iGPU without a sensor
-    /// must not hide a later NVMe/dGPU that has a usable reading.
+    /// Returns every device of the requested kind so the card ViewModel can
+    /// populate its device selector dropdown. The card itself prefers an
+    /// actual temperature-capable device; a USB disk or an iGPU without a
+    /// sensor must not hide a later NVMe/dGPU that has a usable reading.
     /// </summary>
-    private static MonitoredDeviceSnapshot? SelectDashboardDevice(
+    private static List<MonitoredDeviceSnapshot> SelectDevices(
         IEnumerable<MonitoredDeviceSnapshot> devices,
         DeviceKind kind) =>
-        devices.FirstOrDefault(item =>
-            item.Device.Kind == kind && item.Device.Temperature is double temperature && double.IsFinite(temperature))
-        ?? devices.FirstOrDefault(item => item.Device.Kind == kind);
+        devices.Where(item => item.Device.Kind == kind).ToList();
 }

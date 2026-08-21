@@ -6,11 +6,13 @@
              xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF">
   <UserControl.Resources>
     <converters:ThermalLevelToBrushConverter x:Key="LevelBrushConverter" />
+    <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
   </UserControl.Resources>
   <Border Style="{StaticResource CardStyle}">
     <Grid>
       <Grid.RowDefinitions>
         <RowDefinition Height="58" />
+        <RowDefinition Height="22" />
         <RowDefinition Height="202" />
         <RowDefinition Height="38" />
         <RowDefinition Height="118" />
@@ -35,12 +37,17 @@
                    FontSize="19"
                    Text="{Binding Title}"
                    VerticalAlignment="Center" />
-        <TextBlock Grid.Column="2"
-                   FontSize="14"
-                   Foreground="{DynamicResource TextSecondaryBrush}"
-                   Text="{Binding DeviceName, StringFormat=({0})}"
-                   TextTrimming="CharacterEllipsis"
-                   VerticalAlignment="Center" />
+        <ComboBox Grid.Column="2"
+                  Height="32"
+                  Margin="0,0,8,0"
+                  VerticalAlignment="Center"
+                  HorizontalAlignment="Left"
+                  MinWidth="100"
+                  MaxWidth="220"
+                  Style="{StaticResource PageComboBoxStyle}"
+                  ItemsSource="{Binding AvailableDeviceNames}"
+                  SelectedIndex="{Binding SelectedDeviceIndex, Mode=TwoWay}"
+                  Visibility="{Binding IsDeviceSelectorVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
         <Ellipse Grid.Column="3"
                  Width="15"
                  Height="15"
@@ -48,7 +55,15 @@
                  VerticalAlignment="Center" />
       </Grid>
 
-      <Grid Grid.Row="1" Margin="20,0">
+      <TextBlock Grid.Row="1"
+                 Margin="22,0"
+                 FontSize="13"
+                 Foreground="{DynamicResource TextSecondaryBrush}"
+                 Text="{Binding DeviceName}"
+                 TextTrimming="CharacterEllipsis"
+                 VerticalAlignment="Center" />
+
+      <Grid Grid.Row="2" Margin="20,0">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="52*" />
           <ColumnDefinition Width="48*" />
@@ -78,13 +93,13 @@
         </Grid>
       </Grid>
 
-      <TextBlock Grid.Row="2"
+      <TextBlock Grid.Row="3"
                  Margin="22,0"
                  FontSize="16"
                  Text="温度趋势（10分钟）"
                  VerticalAlignment="Center" />
 
-      <Grid Grid.Row="3" Margin="18,0,18,0">
+      <Grid Grid.Row="4" Margin="18,0,18,0">
         <lvc:CartesianChart Series="{Binding Series}"
                             Background="Transparent"
                             XAxes="{Binding XAxes}"
@@ -105,8 +120,8 @@
                    Text="现在" />
       </Grid>
 
-      <Border Grid.Row="4"
-              Background="{DynamicResource SurfaceAltBrush}"
+      <Border Grid.Row="5"
+               Background="{DynamicResource SurfaceAltBrush}"
               BorderBrush="{DynamicResource DividerBrush}"
               BorderThickness="0,1,0,0"
               CornerRadius="0,0,14,14">

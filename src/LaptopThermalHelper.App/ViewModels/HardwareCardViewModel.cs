@@ -12,6 +12,9 @@ namespace LaptopThermalHelper.App.ViewModels;
 public partial class HardwareCardViewModel : ObservableObject
 {
     private readonly BatchObservableCollection<double> _chartValues = [];
+    private readonly BatchObservableCollection<string> _availableDeviceNames = [];
+    private List<MonitoredDeviceSnapshot> _allDevices = [];
+    private bool _isUpdatingDevices;
 
     public HardwareCardViewModel(string title, string icon, SKColor color)
     {
@@ -90,6 +93,89 @@ public partial class HardwareCardViewModel : ObservableObject
 
     [ObservableProperty]
     private string _levelText = "未获取";
+
+    /// <summary>
+    /// All selectable device names for the current kind. Bound to the ComboBox
+    /// in the card header so the user can switch between multiple devices of
+    /// the same kind (e.g. iGPU + dGPU, or multiple NVMe drives).
+    /// </summary>
+    public BatchObservableCollection<string> AvailableDeviceNames => _availableDeviceNames;
+
+    [ObservableProperty]
+    private int _selectedDeviceIndex = -1;
+
+    [ObservableProperty]
+    private bool _isDeviceSelectorVisible;
+
+    /// <summary>
+    /// Receives every device of this card's kind from the latest snapshot.
+    /// On first load the first temperature-capable device is auto-selected;
+    /// afterwards the user's manual selection is preserved across refreshes.
+    /// </summary>
+    public void UpdateDevices(IReadOnlyList<MonitoredDeviceSnapshot> devices)
+    {
+        int previousIndex = SelectedDeviceIndex;
+
+        _isUpdatingDevices = true;
+        try
+        {
+            _allDevices = [.. devices];
+            _availableDeviceNames.ReplaceWith(
+                devices.Select(static d => d.Device.DisplayName).ToList());
+            IsDeviceSelectorVisible = devices.Count > 1;
+
+            if (devices.Count == 0)
+            {
+                SelectedDeviceIndex = -1;
+            }
+            else if (previousIndex < 0 || previousIndex >= devices.Count)
+            {
+                SelectedDeviceIndex = SelectPreferredDeviceIndex(devices);
+            }
+            else
+            {
+                // Restore the user's selection after the ComboBox reset.
+                SelectedDeviceIndex = previousIndex;
+            }
+        }
+        finally
+        {
+            _isUpdatingDevices = false;
+        }
+
+        UpdateCurrentDevice();
+    }
+
+    partial void OnSelectedDeviceIndexChanged(int value)
+    {
+        if (!_isUpdatingDevices)
+        {
+            UpdateCurrentDevice();
+        }
+    }
+
+    private void UpdateCurrentDevice()
+    {
+        MonitoredDeviceSnapshot? snapshot = _allDevices.Count > 0
+            && SelectedDeviceIndex >= 0
+            && SelectedDeviceIndex < _allDevices.Count
+                ? _allDevices[SelectedDeviceIndex]
+                : null;
+        Update(snapshot);
+    }
+
+    private static int SelectPreferredDeviceIndex(IReadOnlyList<MonitoredDeviceSnapshot> devices)
+    {
+        for (int i = 0; i < devices.Count; i++)
+        {
+            if (devices[i].Device.Temperature is double t && double.IsFinite(t))
+            {
+                return i;
+            }
+        }
+
+        return 0;
+    }
 
     public void Update(MonitoredDeviceSnapshot? snapshot)
     {
