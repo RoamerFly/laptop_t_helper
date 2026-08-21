@@ -90,10 +90,9 @@ public sealed class WindowsIntelGpuDriverDetector : IIntelGpuDriverDetector
             : $"Intel 核显驱动版本 {driverVersion}（{FormatDate(driverDate)}），版本满足要求。";
 
         return new IntelGpuDriverInfo(
-            true,
+            isTooOld ? IntelGpuDriverState.TooOld : IntelGpuDriverState.Ok,
             driverVersion,
             driverDate,
-            isTooOld,
             summary);
     }
 

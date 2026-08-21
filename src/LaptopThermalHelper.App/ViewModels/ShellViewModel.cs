@@ -186,6 +186,42 @@ public partial class ShellViewModel : ObservableObject
     [ObservableProperty]
     private bool _isIntelDsaAvailable;
 
+    /// <summary>
+    /// True when the Intel GPU driver notice card should be visible
+    /// (driver too old OR driver sufficient but temperature not supported).
+    /// </summary>
+    [ObservableProperty]
+    private bool _isIntelGpuNoticeVisible;
+
+    /// <summary>
+    /// Title text for the Intel GPU driver notice card. Changes depending
+    /// on whether the driver is too old or the hardware simply does not
+    /// expose a temperature sensor.
+    /// </summary>
+    [ObservableProperty]
+    private string _intelGpuNoticeTitle = "核显温度无法读取 — 驱动过旧";
+
+    /// <summary>
+    /// True when the notice is about a hardware/driver limitation (not about
+    /// a too-old driver). Used to hide the "update driver" buttons.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isIntelGpuTemperatureUnsupported;
+
+    /// <summary>
+    /// True when the "一键安装驱动" button should be visible: the built-in
+    /// installer exists AND the issue is not a hardware limitation.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isIntelDsaButtonVisible;
+
+    partial void OnIsIntelDsaAvailableChanged(bool value) => UpdateDsaButtonVisible();
+
+    partial void OnIsIntelGpuTemperatureUnsupportedChanged(bool value) => UpdateDsaButtonVisible();
+
+    private void UpdateDsaButtonVisible() =>
+        IsIntelDsaButtonVisible = IsIntelDsaAvailable && !IsIntelGpuTemperatureUnsupported;
+
     partial void OnSelectedNavigationChanged(NavigationItem? value)
     {
         if (value is not null)
@@ -425,9 +461,33 @@ public partial class ShellViewModel : ObservableObject
             IsIntelGpuDriverTooOld = info.IsTooOld;
             IntelGpuDriverStatusText = info.Summary;
             IsIntelDsaAvailable = File.Exists(Path.Combine(AppContext.BaseDirectory, "IntelDSA_setup.exe"));
-            if (info.IsTooOld)
+
+            if (info.State == IntelGpuDriverState.TooOld)
             {
+                IsIntelGpuTemperatureUnsupported = false;
+                IntelGpuNoticeTitle = "核显温度无法读取 — 驱动过旧";
+                IsIntelGpuNoticeVisible = true;
                 AddLog("驱动检测", info.Summary, ApplicationEventLevel.Warning);
+            }
+            else if (info.State == IntelGpuDriverState.Ok)
+            {
+                // Driver is sufficient; clear notice. If the hardware doesn't
+                // expose a temperature sensor, UpdateIntelGpuTemperatureSupport
+                // will set the notice later from monitoring data.
+                IsIntelGpuTemperatureUnsupported = false;
+                IsIntelGpuNoticeVisible = false;
+                IntelGpuNoticeTitle = string.Empty;
+            }
+            else if (info.State == IntelGpuDriverState.Unknown)
+            {
+                IsIntelGpuTemperatureUnsupported = false;
+                IntelGpuNoticeTitle = "无法检测 Intel 核显驱动版本";
+                IsIntelGpuNoticeVisible = true;
+                AddLog("驱动检测", info.Summary, ApplicationEventLevel.Warning);
+            }
+            else
+            {
+                IsIntelGpuNoticeVisible = false;
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -437,6 +497,65 @@ public partial class ShellViewModel : ObservableObject
         catch (Exception ex)
         {
             IntelGpuDriverStatusText = $"检测 Intel 核显驱动失败：{ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Called after each monitoring sample to check whether the Intel
+    /// integrated GPU has a usable temperature reading. If the driver was
+    /// detected as sufficient (State == Ok) but no GPU temperature is
+    /// available, the notice card is shown with a hardware-limitation message
+    /// instead of a "driver too old" message.
+    /// </summary>
+    private void UpdateIntelGpuTemperatureSupport(MonitoringSnapshot snapshot)
+    {
+        // Only adjust when the driver was detected as sufficient.
+        // If the driver is too old, the existing notice remains unchanged.
+        if (IsIntelGpuDriverTooOld || IsIntelGpuTemperatureUnsupported)
+        {
+            return;
+        }
+
+        // Find all GPU devices in the snapshot.
+        var gpuDevices = snapshot.Devices
+            .Where(static d => d.Device.Kind == DeviceKind.Gpu)
+            .ToList();
+
+        if (gpuDevices.Count == 0)
+        {
+            return; // No GPU devices at all; nothing to adjust.
+        }
+
+        // Check if any GPU device has a usable temperature.
+        bool anyGpuHasTemperature = gpuDevices.Any(static d =>
+            d.Device.Temperature is double t && double.IsFinite(t));
+
+        // Check if there is an Intel iGPU specifically (name contains Intel
+        // and not NVIDIA/AMD).
+        bool hasIntelGpu = gpuDevices.Any(static d =>
+            d.Device.DisplayName.Contains("Intel", StringComparison.OrdinalIgnoreCase) &&
+            !d.Device.DisplayName.Contains("NVIDIA", StringComparison.OrdinalIgnoreCase) &&
+            !d.Device.DisplayName.Contains("AMD", StringComparison.OrdinalIgnoreCase));
+
+        if (hasIntelGpu && !anyGpuHasTemperature)
+        {
+            // Intel iGPU exists but no GPU temperature at all → hardware limitation.
+            IsIntelGpuTemperatureUnsupported = true;
+            IntelGpuNoticeTitle = "核显温度无法读取 — 硬件不支持";
+            IntelGpuDriverStatusText =
+                "Intel 核显驱动版本已满足要求，但该型号核显（如 UHD Graphics）未通过 IGCL 暴露温度传感器。" +
+                "这是硬件/驱动层面的限制，不影响 CPU、独显和 SSD 的温度监控。";
+            IsIntelGpuNoticeVisible = true;
+        }
+        else if (anyGpuHasTemperature)
+        {
+            // At least one GPU has temperature; hide the notice if it was
+            // previously shown for the unsupported case.
+            if (IsIntelGpuNoticeVisible && !IsIntelGpuDriverTooOld)
+            {
+                IsIntelGpuNoticeVisible = false;
+                IsIntelGpuTemperatureUnsupported = false;
+            }
         }
     }
 
@@ -467,6 +586,7 @@ public partial class ShellViewModel : ObservableObject
     {
         await _systemIntegrationService.ObserveAsync(snapshot, cancellationToken);
         AutoCoolingStatus = _systemIntegrationService.AutoCoolingStatus.Message;
+        UpdateIntelGpuTemperatureSupport(snapshot);
     }
 
     public Task ShutdownSystemIntegrationAsync(CancellationToken cancellationToken = default) =>
