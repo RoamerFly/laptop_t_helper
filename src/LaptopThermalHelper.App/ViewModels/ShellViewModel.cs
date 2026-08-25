@@ -24,6 +24,7 @@ public partial class ShellViewModel : ObservableObject
     private readonly IApplicationEventLog _eventLog;
     private readonly IApplicationRuntimeInfo _runtimeInfo;
     private readonly IIntelGpuDriverDetector _intelGpuDriverDetector;
+    private readonly IUpdateCheckService _updateCheckService;
     private bool _applyingStoredSettings;
     private bool _isLogDisplayCleared;
 
@@ -34,7 +35,8 @@ public partial class ShellViewModel : ObservableObject
         SystemIntegrationService systemIntegrationService,
         IApplicationEventLog eventLog,
         IApplicationRuntimeInfo runtimeInfo,
-        IIntelGpuDriverDetector intelGpuDriverDetector)
+        IIntelGpuDriverDetector intelGpuDriverDetector,
+        IUpdateCheckService updateCheckService)
     {
         Dashboard = dashboard;
         TemperatureDetail = new TemperatureDetailViewModel(dashboard, historyBuffer);
@@ -43,6 +45,7 @@ public partial class ShellViewModel : ObservableObject
         _eventLog = eventLog;
         _runtimeInfo = runtimeInfo;
         _intelGpuDriverDetector = intelGpuDriverDetector;
+        _updateCheckService = updateCheckService;
         NavigationItems =
         [
             new NavigationItem("dashboard", "总览", "\uE80F", new DashboardPage()),
@@ -52,14 +55,6 @@ public partial class ShellViewModel : ObservableObject
             new NavigationItem("settings", "设置", "\uE713", new SettingsPage()),
             new NavigationItem("logs", "日志", "\uE9D5", new LogsPage()),
             new NavigationItem("about", "关于", "\uE946", new AboutPage()),
-        ];
-        SensorReadings =
-        [
-            new SensorReadingItem("CPU", "CPU Package", "核心温度", "当前主传感器", "--", "--", "--", "--", "cpu/0/temperature/0"),
-            new SensorReadingItem("CPU", "Core Max", "核心温度", "备用传感器", "--", "--", "--", "--", "cpu/0/temperature/1"),
-            new SensorReadingItem("GPU", "GPU Core", "核心温度", "当前主传感器", "--", "--", "--", "--", "gpu-nvidia/0/temperature/0"),
-            new SensorReadingItem("SSD", "Composite", "磁盘温度", "当前主传感器", "--", "--", "--", "--", "storage/0/temperature/0"),
-            new SensorReadingItem("风扇", "GPU Fan", "转速", "设备未开放", "未开放", "--", "--", "--", "controller/0/fan/0"),
         ];
         ActivityLogs = [];
         _eventLog.EventWritten += EventLog_EventWritten;
@@ -75,11 +70,7 @@ public partial class ShellViewModel : ObservableObject
 
     public ObservableCollection<NavigationItem> NavigationItems { get; }
 
-    public IReadOnlyList<SensorReadingItem> SensorReadings { get; }
-
     public ObservableCollection<ActivityLogEntry> ActivityLogs { get; }
-
-    public IReadOnlyList<string> TemperatureRanges { get; } = ["30 分钟", "1 小时", "24 小时"];
 
     public IReadOnlyList<string> SamplingIntervals { get; } = ["1 秒", "2 秒（推荐）", "5 秒"];
 
@@ -104,12 +95,6 @@ public partial class ShellViewModel : ObservableObject
 
     [ObservableProperty]
     private string _operationFeedback = "正在初始化本机设置与安全服务。";
-
-    [ObservableProperty]
-    private string _selectedTemperatureRange = "30 分钟";
-
-    [ObservableProperty]
-    private string _temperatureRangeSummary = "选择时间范围后，将从本地温度历史缓冲读取数据。";
 
     [ObservableProperty]
     private string _samplingInterval = "2 秒（推荐）";
@@ -238,11 +223,6 @@ public partial class ShellViewModel : ObservableObject
         }
     }
 
-    partial void OnSelectedTemperatureRangeChanged(string value)
-    {
-        TemperatureRangeSummary = $"已选择 {value} 范围。";
-    }
-
     partial void OnSelectedLogFilterChanged(string value)
     {
         _isLogDisplayCleared = false;
@@ -305,23 +285,54 @@ public partial class ShellViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void SelectCoolingPolicy(string? policy)
+    private async Task SelectCoolingPolicyAsync(string? policy)
     {
         if (string.IsNullOrWhiteSpace(policy))
         {
             return;
         }
 
+        string previousPolicy = CoolingPolicy;
         CoolingPolicy = policy;
-        OperationFeedback = $"已选择“{CoolingPolicy}”策略。启用后只会使用 Windows 公开的处理器电源管理能力。";
+        OperationFeedback = $"正在应用“{policy}”策略…";
+
+        // 选择即保存：策略随当前设置立即持久化并生效。
+        if (TryCreateSettings(out ApplicationSettings settings, out string? validationError))
+        {
+            SettingsSaveResult result = await _systemIntegrationService.SaveSettingsAsync(settings);
+            ApplySettings(result.Settings);
+            OperationFeedback = result.Succeeded
+                ? PolicyAppliedText(policy)
+                : $"“{policy}”策略保存失败：{result.Message}";
+            if (result.Succeeded)
+            {
+                SamplingIntervalChanged?.Invoke(this, result.Settings.SamplingIntervalSeconds);
+            }
+        }
+        else
+        {
+            // 阈值等输入非法时回退到旧策略，避免界面与实际状态不一致。
+            _applyingStoredSettings = true;
+            CoolingPolicy = previousPolicy;
+            _applyingStoredSettings = false;
+            OperationFeedback = $"切换策略失败：{validationError}";
+        }
+
         AddLog("性能模式", OperationFeedback, ApplicationEventLevel.Information);
     }
+
+    private static string PolicyAppliedText(string policy) => policy switch
+    {
+        "仅监测" => "已应用“仅监测”策略：自动降温不会修改任何 Windows 电源设置。",
+        "温和降温" => "已应用“温和降温”策略：持续高温时处理器上限临时降至 90%。",
+        "主动降温" => "已应用“主动降温”策略：持续高温时处理器上限临时降至 80%。",
+        _ => $"已应用“{policy}”策略。",
+    };
 
     [RelayCommand]
     private void RefreshDetails()
     {
         TemperatureDetail.RefreshFromDashboard();
-        TemperatureRangeSummary = $"已刷新 {SelectedTemperatureRange} 详情视图。";
         OperationFeedback = "已请求只读传感器刷新。";
         AddLog("硬件采样", "用户从温度监控页请求刷新", ApplicationEventLevel.Information);
     }
@@ -393,10 +404,29 @@ public partial class ShellViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void CheckForUpdates()
+    private async Task CheckForUpdatesAsync(CancellationToken cancellationToken)
     {
-        OperationFeedback = $"当前为 v{ApplicationVersionText}；在线更新检查尚未接入。";
-        AddLog("关于", "请求检查更新；在线更新尚未接入。", ApplicationEventLevel.Information);
+        OperationFeedback = $"正在检查更新（当前 v{ApplicationVersionText}）…";
+        AddLog("关于", "请求检查更新", ApplicationEventLevel.Information);
+        try
+        {
+            UpdateCheckResult result = await _updateCheckService.CheckAsync(cancellationToken);
+            OperationFeedback = result.Message;
+            AddLog("关于", result.Message, ApplicationEventLevel.Information);
+            if (result.Outcome == UpdateCheckOutcome.UpdateAvailable && result.ReleaseUrl is not null)
+            {
+                OpenInBrowser(result.ReleaseUrl, "发布页");
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            OperationFeedback = $"检查更新失败：{exception.Message}";
+            AddLog("关于", OperationFeedback, ApplicationEventLevel.Warning);
+        }
     }
 
     [RelayCommand]
@@ -409,21 +439,11 @@ public partial class ShellViewModel : ObservableObject
     [RelayCommand]
     private void OpenIntelDriverDownloadPage()
     {
-        try
-        {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = "https://www.intel.com/content/www/us/en/support/intel-driver-support-assistant.html",
-                UseShellExecute = true,
-            });
-            OperationFeedback = "已在浏览器中打开 Intel 驱动与支持助理页面。下载并安装后重启电脑，核显温度即可读取。";
-            AddLog("驱动检测", "用户打开了 Intel 驱动下载页面", ApplicationEventLevel.Information);
-        }
-        catch (Exception ex)
-        {
-            OperationFeedback = $"无法打开浏览器：{ex.Message}";
-            AddLog("驱动检测", OperationFeedback, ApplicationEventLevel.Warning);
-        }
+        OpenInBrowser(
+            "https://www.intel.com/content/www/us/en/support/intel-driver-support-assistant.html",
+            "Intel 驱动与支持助理页面",
+            "已在浏览器中打开 Intel 驱动与支持助理页面。下载并安装后重启电脑，核显温度即可读取。",
+            "用户打开了 Intel 驱动下载页");
     }
 
     [RelayCommand]
@@ -592,6 +612,25 @@ public partial class ShellViewModel : ObservableObject
     public Task ShutdownSystemIntegrationAsync(CancellationToken cancellationToken = default) =>
         _systemIntegrationService.ShutdownAsync(cancellationToken);
 
+    private void OpenInBrowser(string url, string targetName, string? successMessage = null, string? logMessage = null)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = url,
+                UseShellExecute = true,
+            });
+            OperationFeedback = successMessage ?? $"已在浏览器中打开{targetName}。";
+            AddLog("关于", logMessage ?? $"用户打开了{targetName}", ApplicationEventLevel.Information);
+        }
+        catch (Exception exception)
+        {
+            OperationFeedback = $"无法打开浏览器：{exception.Message}";
+            AddLog("关于", OperationFeedback, ApplicationEventLevel.Warning);
+        }
+    }
+
     private async void PersistAutoCoolingPreferenceAsync(bool enabled)
     {
         ApplicationSettings requested = _systemIntegrationService.Settings with { AutoCoolingEnabled = enabled };
@@ -619,7 +658,6 @@ public partial class ShellViewModel : ObservableObject
         int interval = SamplingInterval.Length > 0 && SamplingInterval[0] == '1' ? 1
             : SamplingInterval.Length > 0 && SamplingInterval[0] == '5' ? 5
             : 2;
-        int processorLimit = CoolingPolicy == "主动降温" ? 85 : 90;
         settings = _systemIntegrationService.Settings with
         {
             SamplingIntervalSeconds = interval,
@@ -630,13 +668,29 @@ public partial class ShellViewModel : ObservableObject
             CpuHighThresholdCelsius = cpu,
             GpuHighThresholdCelsius = gpu,
             StorageHighThresholdCelsius = storage,
+            CoolingPolicy = CoolingPolicyTextToKind(CoolingPolicy),
             AutoCoolingEnabled = IsAutoCoolingEnabled,
             AutoCoolingTriggerCelsius = cpu,
-            AutoCoolingMaxProcessorStatePercent = processorLimit,
         };
         error = null;
         return true;
     }
+
+    /// <summary>Maps the UI policy label to the persisted policy kind.</summary>
+    private static CoolingPolicyKind CoolingPolicyTextToKind(string text) => text switch
+    {
+        "温和降温" => CoolingPolicyKind.Moderate,
+        "主动降温" => CoolingPolicyKind.Aggressive,
+        _ => CoolingPolicyKind.MonitorOnly,
+    };
+
+    /// <summary>Maps the persisted policy kind to the UI policy label.</summary>
+    private static string CoolingPolicyKindToText(CoolingPolicyKind kind) => kind switch
+    {
+        CoolingPolicyKind.Moderate => "温和降温",
+        CoolingPolicyKind.Aggressive => "主动降温",
+        _ => "仅监测",
+    };
 
     private void ApplySettings(ApplicationSettings settings)
     {
@@ -656,6 +710,7 @@ public partial class ShellViewModel : ObservableObject
             CpuHighThreshold = settings.CpuHighThresholdCelsius.ToString(CultureInfo.InvariantCulture);
             GpuHighThreshold = settings.GpuHighThresholdCelsius.ToString(CultureInfo.InvariantCulture);
             StorageHighThreshold = settings.StorageHighThresholdCelsius.ToString(CultureInfo.InvariantCulture);
+            CoolingPolicy = CoolingPolicyKindToText(settings.CoolingPolicy);
             IsAutoCoolingEnabled = settings.AutoCoolingEnabled;
         }
         finally
@@ -803,16 +858,5 @@ public sealed class SettingsPage() : AppPage("设置", "阈值、采样与通知
 public sealed class LogsPage() : AppPage("日志", "本地温度历史与应用事件");
 
 public sealed class AboutPage() : AppPage("关于", "版本、许可证和数据使用说明");
-
-public sealed record SensorReadingItem(
-    string Device,
-    string Name,
-    string Metric,
-    string Role,
-    string Current,
-    string Minimum,
-    string Maximum,
-    string Average,
-    string Identifier);
 
 public sealed record ActivityLogEntry(string Time, string Category, string Message, string Level);

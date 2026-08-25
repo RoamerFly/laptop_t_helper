@@ -283,18 +283,19 @@ public sealed class AutoCoolingService : IDisposable
 
         try
         {
+            int processorLimit = settings.EffectiveAutoCoolingMaxProcessorStatePercent;
             PowerPlanSnapshot snapshot = await _powerPlanAdapter.CaptureAsync(cancellationToken).ConfigureAwait(false);
             await _recoveryStore.SaveAsync(new AutoCoolingRecoveryRecord(snapshot, now), cancellationToken).ConfigureAwait(false);
             _originalPowerPlan = snapshot;
             await _powerPlanAdapter
-                .ApplyConservativeLimitAsync(snapshot, settings.AutoCoolingMaxProcessorStatePercent, cancellationToken)
+                .ApplyConservativeLimitAsync(snapshot, processorLimit, cancellationToken)
                 .ConfigureAwait(false);
             _aboveThresholdSince = null;
             SetStatus(
                 AutoCoolingState.ReducingPerformance,
                 _powerPlanAdapter.IsDryRun
                     ? "自动降温干运行已触发；没有修改 Windows 电源设置。"
-                    : $"已将当前电源计划的处理器最大状态临时限制为 {settings.AutoCoolingMaxProcessorStatePercent}%。",
+                    : $"已将当前电源计划的处理器最大状态临时限制为 {processorLimit}%。",
                 true);
             _eventLog.Write(ApplicationEventLevel.Warning, "自动降温", Status.Message);
         }

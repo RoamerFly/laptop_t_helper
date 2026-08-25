@@ -21,7 +21,7 @@
           </Border>
         </StackPanel>
         <Border Grid.Column="2" Style="{StaticResource CardStyle}" Padding="20">
-          <Grid><Grid.RowDefinitions><RowDefinition Height="34" /><RowDefinition Height="*" /><RowDefinition Height="42" /></Grid.RowDefinitions><TextBlock FontSize="18" FontWeight="SemiBold" Text="高级风扇控制" /><StackPanel Grid.Row="1" VerticalAlignment="Center"><TextBlock FontSize="26" Foreground="{DynamicResource TextMutedBrush}" Text="规划中" /><TextBlock Margin="0,10,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" Text="需要明确的设备白名单和安全验证后才会开放。当前按钮刻意禁用。" /></StackPanel><Button AutomationProperties.Name="设置自定义风扇曲线（不可用）" Grid.Row="2" IsEnabled="False" Style="{StaticResource SecondaryButtonStyle}" ToolTip="第一版不提供风扇曲线写入" Content="设置自定义风扇曲线" /></Grid>
+          <Grid><Grid.RowDefinitions><RowDefinition Height="34" /><RowDefinition /><RowDefinition Height="42" /></Grid.RowDefinitions><TextBlock FontSize="18" FontWeight="SemiBold" Text="为什么没有手动风扇控制" /><StackPanel Grid.Row="1" VerticalAlignment="Center"><TextBlock FontSize="26" Foreground="{DynamicResource TextMutedBrush}" Text="只读设计" /><TextBlock Margin="0,10,0,0" TextWrapping="Wrap" LineHeight="23" Foreground="{DynamicResource TextSecondaryBrush}" Text="写入 EC 或厂商私有接口存在死机与硬件风险，且每台机型的寄存器定义不同。本程序坚持零写入原则，转速调整请使用机型自带的风扇模式快捷键或厂商控制中心。" /></StackPanel><Button AutomationProperties.Name="查看自动降温替代方案" Grid.Row="2" Command="{Binding NavigateCommand}" CommandParameter="performance" Style="{StaticResource SecondaryButtonStyle}" Content="了解自动降温替代方案" /></Grid>
         </Border>
       </Grid>
       <Border Margin="0,16,0,0" Style="{StaticResource CardStyle}" Padding="14,11"><TextBlock Foreground="{DynamicResource InfoTextBrush}" Text="{Binding OperationFeedback}" /></Border>

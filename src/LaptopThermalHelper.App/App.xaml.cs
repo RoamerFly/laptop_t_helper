@@ -55,6 +55,7 @@ public partial class App : System.Windows.Application
                 services.AddSingleton<AutoCoolingService>();
                 services.AddSingleton<SystemIntegrationService>();
                 services.AddSingleton<IApplicationRuntimeInfo, ApplicationRuntimeInfo>();
+                services.AddSingleton<IUpdateCheckService, GitHubUpdateCheckService>();
                 services.AddSingleton<MonitoringCoordinator>();
                 services.AddSingleton<DashboardViewModel>();
                 services.AddSingleton<ShellViewModel>();

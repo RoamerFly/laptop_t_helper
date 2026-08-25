@@ -15,10 +15,10 @@
           <StackPanel><TextBlock FontSize="18" FontWeight="SemiBold" Text="仅监测" /><TextBlock Margin="0,8,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" Text="默认策略：采集温度、保存历史并发送通知，不修改任何 Windows 电源参数。" /></StackPanel>
         </Button>
         <Button Grid.Column="2" AutomationProperties.Name="选择温和降温策略" Command="{Binding SelectCoolingPolicyCommand}" CommandParameter="温和降温" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="18" HorizontalContentAlignment="Left">
-          <StackPanel><TextBlock FontSize="18" FontWeight="SemiBold" Text="温和降温" /><TextBlock Margin="0,8,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" Text="达到已配置的持续高温条件后，按已保存的安全范围调整公开的处理器电源设置。" /></StackPanel>
+          <StackPanel><TextBlock FontSize="18" FontWeight="SemiBold" Text="温和降温" /><TextBlock Margin="0,8,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" Text="持续高温时，将处理器最大状态临时限制为 90%；恢复后还原原始设置。" /></StackPanel>
         </Button>
         <Button Grid.Column="4" AutomationProperties.Name="选择主动降温策略" Command="{Binding SelectCoolingPolicyCommand}" CommandParameter="主动降温" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="18" HorizontalContentAlignment="Left">
-          <StackPanel><TextBlock FontSize="18" FontWeight="SemiBold" Text="主动降温" /><TextBlock Margin="0,8,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" Text="持续高温时采取更保守的公开处理器电源限制；停止条件满足后会恢复原有设置。" /></StackPanel>
+          <StackPanel><TextBlock FontSize="18" FontWeight="SemiBold" Text="主动降温" /><TextBlock Margin="0,8,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" Text="持续高温时，将处理器最大状态临时限制为 80%，降温更明显；恢复后还原原始设置。" /></StackPanel>
         </Button>
       </Grid>
 

@@ -2,6 +2,20 @@ using LaptopThermalHelper.Core.Domain;
 
 namespace LaptopThermalHelper.App.Services;
 
+/// <summary>
+/// User-selectable automatic-cooling aggressiveness. MonitorOnly never writes
+/// any power setting; the other two differ in how far the processor state is
+/// allowed to drop while cooling is active.
+/// </summary>
+public enum CoolingPolicyKind
+{
+    MonitorOnly,
+
+    Moderate,
+
+    Aggressive,
+}
+
 public sealed record ApplicationSettings
 {
     public const int CurrentSchemaVersion = 1;
@@ -29,6 +43,9 @@ public sealed record ApplicationSettings
     public int StorageHighThresholdCelsius { get; init; } = 70;
 
     public bool AutoCoolingEnabled { get; init; }
+
+    /// <summary>Cooling aggressiveness selected on the performance page.</summary>
+    public CoolingPolicyKind CoolingPolicy { get; init; } = CoolingPolicyKind.MonitorOnly;
 
     public int AutoCoolingTriggerCelsius { get; init; } = 90;
 
@@ -60,6 +77,20 @@ public sealed record ApplicationSettings
         AutoCoolingRecoverySeconds = Math.Clamp(AutoCoolingRecoverySeconds, 30, 900),
         AutoCoolingHysteresisCelsius = Math.Clamp(AutoCoolingHysteresisCelsius, 1, 15),
         AutoCoolingMaxProcessorStatePercent = Math.Clamp(AutoCoolingMaxProcessorStatePercent, 50, 99),
+    };
+
+    /// <summary>
+    /// Processor-state ceiling applied while automatic cooling is active.
+    /// Derived from the cooling policy so the three levels stay clearly
+    /// differentiated: monitor-only keeps 100% (no limit), moderate drops to
+    /// 90%, aggressive drops to 80%. The stored value is ignored when the
+    /// policy is MonitorOnly because no power setting is ever written.
+    /// </summary>
+    public int EffectiveAutoCoolingMaxProcessorStatePercent => CoolingPolicy switch
+    {
+        CoolingPolicyKind.Aggressive => Math.Min(AutoCoolingMaxProcessorStatePercent, 80),
+        CoolingPolicyKind.Moderate => Math.Min(AutoCoolingMaxProcessorStatePercent, 90),
+        _ => 100,
     };
 }
 
