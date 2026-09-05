@@ -85,10 +85,16 @@ public partial class ShellViewModel : ObservableObject
     private AppPage _currentPage = new DashboardPage();
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(QuickActionAutoCoolingText))]
     private bool _isAutoCoolingEnabled;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(QuickActionCoolingPolicyText))]
     private string _coolingPolicy = "仅监测";
+
+    public string QuickActionAutoCoolingText => IsAutoCoolingEnabled ? "⚙  停用自动降温" : "⚙  启用自动降温";
+
+    public string QuickActionCoolingPolicyText => $"⚖  切换策略：{CoolingPolicy}";
 
     [ObservableProperty]
     private string _autoCoolingStatus = "自动降温服务正在初始化。";
@@ -323,6 +329,48 @@ public partial class ShellViewModel : ObservableObject
         }
 
         AddLog("性能模式", OperationFeedback, ApplicationEventLevel.Information);
+    }
+
+    [RelayCommand]
+    private async Task CycleCoolingPolicyAsync()
+    {
+        string nextPolicy = CoolingPolicy switch
+        {
+            "仅监测" => "温和降温",
+            "温和降温" => "主动降温",
+            "主动降温" => "仅监测",
+            _ => "温和降温",
+        };
+        await SelectCoolingPolicyAsync(nextPolicy);
+    }
+
+    [RelayCommand]
+    private async Task ToggleAutoCoolingAsync()
+    {
+        bool newEnabled = !IsAutoCoolingEnabled;
+        _applyingStoredSettings = true;
+        IsAutoCoolingEnabled = newEnabled;
+        _applyingStoredSettings = false;
+
+        ApplicationSettings requested = _systemIntegrationService.Settings with { AutoCoolingEnabled = newEnabled };
+        SettingsSaveResult result = await _systemIntegrationService.SaveSettingsAsync(requested);
+        ApplySettings(result.Settings);
+        AutoCoolingStatus = _systemIntegrationService.AutoCoolingStatus.Message;
+        if (result.Succeeded)
+        {
+            OperationFeedback = newEnabled
+                ? "已开启自动降温。"
+                : "已关闭自动降温（仅监控，不干预系统设置）。";
+            AddLog("温控设置", OperationFeedback, ApplicationEventLevel.Information);
+        }
+        else
+        {
+            _applyingStoredSettings = true;
+            IsAutoCoolingEnabled = _systemIntegrationService.Settings.AutoCoolingEnabled;
+            _applyingStoredSettings = false;
+            OperationFeedback = $"更改自动降温失败：{result.Message}";
+            AddLog("温控设置", OperationFeedback, ApplicationEventLevel.Warning);
+        }
     }
 
     private static string PolicyAppliedText(string policy) => policy switch
