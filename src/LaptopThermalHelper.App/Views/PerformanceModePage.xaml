@@ -1,6 +1,40 @@
 <UserControl x:Class="LaptopThermalHelper.App.Views.PerformanceModePage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <UserControl.Resources>
+    <Style x:Key="PolicyCardButtonStyle" TargetType="Button">
+      <Setter Property="Padding" Value="18" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Root"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="10"
+                    Padding="{TemplateBinding Padding}"
+                    RenderTransformOrigin="0.5,0.5">
+              <Border.RenderTransform><ScaleTransform /></Border.RenderTransform>
+              <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Root" Property="Opacity" Value="0.95" />
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Root" Property="Opacity" Value="0.82" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+  </UserControl.Resources>
   <ScrollViewer VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
     <StackPanel Margin="22,18,24,24">
       <TextBlock FontSize="22" FontWeight="SemiBold" Text="性能模式" />
@@ -11,13 +45,46 @@
 
       <Grid Margin="0,0,0,16">
         <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="16" /><ColumnDefinition /><ColumnDefinition Width="16" /><ColumnDefinition /></Grid.ColumnDefinitions>
-        <Button AutomationProperties.Name="选择仅监测策略" Command="{Binding SelectCoolingPolicyCommand}" CommandParameter="仅监测" Background="{DynamicResource AccentSoftBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" Padding="18" HorizontalContentAlignment="Left">
+        <Button AutomationProperties.Name="选择仅监测策略" Command="{Binding SelectCoolingPolicyCommand}" CommandParameter="仅监测">
+          <Button.Style>
+            <Style TargetType="Button" BasedOn="{StaticResource PolicyCardButtonStyle}">
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding CoolingPolicy}" Value="仅监测">
+                  <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+                  <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                  <Setter Property="BorderThickness" Value="2" />
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </Button.Style>
           <StackPanel><TextBlock FontSize="18" FontWeight="SemiBold" Text="仅监测" /><TextBlock Margin="0,8,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" Text="默认策略：采集温度、保存历史并发送通知，不修改任何 Windows 电源参数。" /></StackPanel>
         </Button>
-        <Button Grid.Column="2" AutomationProperties.Name="选择温和降温策略" Command="{Binding SelectCoolingPolicyCommand}" CommandParameter="温和降温" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="18" HorizontalContentAlignment="Left">
+        <Button Grid.Column="2" AutomationProperties.Name="选择温和降温策略" Command="{Binding SelectCoolingPolicyCommand}" CommandParameter="温和降温">
+          <Button.Style>
+            <Style TargetType="Button" BasedOn="{StaticResource PolicyCardButtonStyle}">
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding CoolingPolicy}" Value="温和降温">
+                  <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+                  <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                  <Setter Property="BorderThickness" Value="2" />
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </Button.Style>
           <StackPanel><TextBlock FontSize="18" FontWeight="SemiBold" Text="温和降温" /><TextBlock Margin="0,8,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" Text="持续高温时，将处理器最大状态临时限制为 90%；恢复后还原原始设置。" /></StackPanel>
         </Button>
-        <Button Grid.Column="4" AutomationProperties.Name="选择主动降温策略" Command="{Binding SelectCoolingPolicyCommand}" CommandParameter="主动降温" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="18" HorizontalContentAlignment="Left">
+        <Button Grid.Column="4" AutomationProperties.Name="选择主动降温策略" Command="{Binding SelectCoolingPolicyCommand}" CommandParameter="主动降温">
+          <Button.Style>
+            <Style TargetType="Button" BasedOn="{StaticResource PolicyCardButtonStyle}">
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding CoolingPolicy}" Value="主动降温">
+                  <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+                  <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                  <Setter Property="BorderThickness" Value="2" />
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </Button.Style>
           <StackPanel><TextBlock FontSize="18" FontWeight="SemiBold" Text="主动降温" /><TextBlock Margin="0,8,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" Text="持续高温时，将处理器最大状态临时限制为 80%，降温更明显；恢复后还原原始设置。" /></StackPanel>
         </Button>
       </Grid>

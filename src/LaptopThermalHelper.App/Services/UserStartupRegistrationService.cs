@@ -46,8 +46,8 @@ public sealed class UserStartupRegistrationService : IUserStartupRegistrationSer
                     "无法确定当前应用程序路径，未写入开机启动项。"));
             }
 
-            key.SetValue(ValueName, $"\"{executablePath.Replace("\"", string.Empty)}\"", RegistryValueKind.String);
-            return Task.FromResult(new StartupRegistrationResult(true, "已为当前用户启用开机启动。"));
+            key.SetValue(ValueName, $"\"{executablePath.Replace("\"", string.Empty)}\" --background", RegistryValueKind.String);
+            return Task.FromResult(new StartupRegistrationResult(true, "已为当前用户启用开机启动（后台静默运行）。"));
         }
         catch (Exception exception) when (exception is UnauthorizedAccessException or IOException or SecurityException)
         {

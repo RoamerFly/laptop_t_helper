@@ -34,7 +34,13 @@ public sealed record ApplicationSettings
 
     public bool StartWithWindows { get; init; }
 
-    public bool MinimizeToTray { get; init; }
+    public bool MinimizeToTray { get; init; } = true;
+
+    public bool ShowFloatingWindow { get; init; }
+
+    public double? FloatingWindowLeft { get; init; }
+
+    public double? FloatingWindowTop { get; init; }
 
     public int CpuHighThresholdCelsius { get; init; } = 90;
 

@@ -41,11 +41,15 @@ public interface ITrayIconService : IDisposable
 
     event EventHandler? ExitRequested;
 
+    event EventHandler? ToggleFloatingWindowRequested;
+
     bool IsAvailable { get; }
 
     void Initialize();
 
     void UpdateStatus(TrayStatus status);
+
+    void UpdateFloatingWindowMenu(bool isVisible);
 
     bool ShowNotification(string title, string message, bool isCritical);
 }
@@ -53,11 +57,14 @@ public interface ITrayIconService : IDisposable
 public sealed class WindowsTrayIconService : ITrayIconService
 {
     private Forms.NotifyIcon? _notifyIcon;
+    private Forms.ToolStripMenuItem? _floatingMenuItem;
     private bool _disposed;
 
     public event EventHandler? ShowRequested;
 
     public event EventHandler? ExitRequested;
+
+    public event EventHandler? ToggleFloatingWindowRequested;
 
     public bool IsAvailable => _notifyIcon is not null && !_disposed;
 
@@ -72,6 +79,8 @@ public sealed class WindowsTrayIconService : ITrayIconService
         {
             var menu = new Forms.ContextMenuStrip();
             menu.Items.Add("显示主窗口", null, (_, _) => RaiseOnUiThread(ShowRequested));
+            _floatingMenuItem = new Forms.ToolStripMenuItem("桌面悬浮窗", null, (_, _) => RaiseOnUiThread(ToggleFloatingWindowRequested));
+            menu.Items.Add(_floatingMenuItem);
             menu.Items.Add(new Forms.ToolStripSeparator());
             menu.Items.Add("退出", null, (_, _) => RaiseOnUiThread(ExitRequested));
 
@@ -98,6 +107,17 @@ public sealed class WindowsTrayIconService : ITrayIconService
         }
 
         _notifyIcon.Text = TrimToolTip(status.ToolTipText);
+    }
+
+    public void UpdateFloatingWindowMenu(bool isVisible)
+    {
+        if (_floatingMenuItem is null)
+        {
+            return;
+        }
+
+        _floatingMenuItem.Text = isVisible ? "隐藏桌面悬浮窗" : "显示桌面悬浮窗";
+        _floatingMenuItem.Checked = isVisible;
     }
 
     public bool ShowNotification(string title, string message, bool isCritical)

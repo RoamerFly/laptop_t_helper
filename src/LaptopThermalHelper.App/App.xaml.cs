@@ -69,7 +69,19 @@ public partial class App : System.Windows.Application
             _host.Services.GetRequiredService<ThemeService>().UseLight();
         }
 
-        _host.Services.GetRequiredService<MainWindow>().Show();
+        bool startInBackground = e.Args.Contains("--background", StringComparer.OrdinalIgnoreCase) ||
+                                 e.Args.Contains("--silent", StringComparer.OrdinalIgnoreCase) ||
+                                 e.Args.Contains("--minimized", StringComparer.OrdinalIgnoreCase);
+
+        MainWindow mainWindow = _host.Services.GetRequiredService<MainWindow>();
+        if (startInBackground)
+        {
+            _ = mainWindow.StartInBackgroundAsync();
+        }
+        else
+        {
+            mainWindow.Show();
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)

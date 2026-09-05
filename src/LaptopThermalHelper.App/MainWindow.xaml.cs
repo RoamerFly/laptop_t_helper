@@ -9,6 +9,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using LaptopThermalHelper.App.Services;
 using LaptopThermalHelper.App.ViewModels;
+using LaptopThermalHelper.App.Views;
 using LaptopThermalHelper.Application.Monitoring;
 using LaptopThermalHelper.Core.Domain;
 using Serilog;
@@ -28,6 +29,7 @@ public partial class MainWindow : Window
     private readonly ThemeService _themeService;
     private readonly ITrayIconService _trayIconService;
     private readonly DispatcherTimer _sampleTimer = new() { Interval = TimeSpan.FromSeconds(2) };
+    private FloatingWindow? _floatingWindow;
     private bool _initialBoundsApplied;
     private bool _isExitApproved;
     private bool _isShutdownInProgress;
@@ -49,8 +51,10 @@ public partial class MainWindow : Window
         StateChanged += MainWindow_StateChanged;
         _sampleTimer.Tick += SampleTimer_Tick;
         _viewModel.SamplingIntervalChanged += ViewModel_SamplingIntervalChanged;
+        _viewModel.FloatingWindowVisibilityChanged += ViewModel_FloatingWindowVisibilityChanged;
         _trayIconService.ShowRequested += TrayIconService_ShowRequested;
         _trayIconService.ExitRequested += TrayIconService_ExitRequested;
+        _trayIconService.ToggleFloatingWindowRequested += TrayIconService_ToggleFloatingWindowRequested;
     }
 
     protected override void OnSourceInitialized(EventArgs e)
@@ -65,6 +69,7 @@ public partial class MainWindow : Window
     {
         await _viewModel.InitializeSystemIntegrationAsync();
         _trayIconService.Initialize();
+        UpdateFloatingWindowVisibility(_viewModel.ShowFloatingWindow);
         Task systemInformationLoad = _viewModel.LoadSystemInformationAsync();
         await RefreshSafelyAsync();
         await systemInformationLoad;
@@ -75,8 +80,11 @@ public partial class MainWindow : Window
     {
         _sampleTimer.Stop();
         _viewModel.SamplingIntervalChanged -= ViewModel_SamplingIntervalChanged;
+        _viewModel.FloatingWindowVisibilityChanged -= ViewModel_FloatingWindowVisibilityChanged;
         _trayIconService.ShowRequested -= TrayIconService_ShowRequested;
         _trayIconService.ExitRequested -= TrayIconService_ExitRequested;
+        _trayIconService.ToggleFloatingWindowRequested -= TrayIconService_ToggleFloatingWindowRequested;
+        _floatingWindow?.Close();
         _trayIconService.Dispose();
     }
 
@@ -202,14 +210,58 @@ public partial class MainWindow : Window
         await ExitApplicationAsync();
     }
 
-    private void TrayIconService_ShowRequested(object? sender, EventArgs e)
+    private void TrayIconService_ShowRequested(object? sender, EventArgs e) => RestoreFromTray();
+
+    private void TrayIconService_ExitRequested(object? sender, EventArgs e) => _ = ExitApplicationAsync();
+
+    private void ViewModel_FloatingWindowVisibilityChanged(object? sender, bool isVisible) =>
+        UpdateFloatingWindowVisibility(isVisible);
+
+    private void TrayIconService_ToggleFloatingWindowRequested(object? sender, EventArgs e) =>
+        _viewModel.ToggleFloatingWindow();
+
+    public void UpdateFloatingWindowVisibility(bool isVisible)
+    {
+        if (isVisible)
+        {
+            if (_floatingWindow is null)
+            {
+                _floatingWindow = new FloatingWindow(
+                    _viewModel,
+                    _themeService,
+                    RestoreFromTray,
+                    () => _ = ExitApplicationAsync());
+                _floatingWindow.Closed += (_, _) => _floatingWindow = null;
+            }
+
+            _floatingWindow.Show();
+        }
+        else
+        {
+            _floatingWindow?.Hide();
+        }
+
+        _trayIconService.UpdateFloatingWindowMenu(isVisible);
+    }
+
+    public async Task StartInBackgroundAsync()
+    {
+        await _viewModel.InitializeSystemIntegrationAsync();
+        _trayIconService.Initialize();
+        UpdateFloatingWindowVisibility(_viewModel.ShowFloatingWindow);
+        Task systemInformationLoad = _viewModel.LoadSystemInformationAsync();
+        await RefreshSafelyAsync();
+        await systemInformationLoad;
+        _sampleTimer.Start();
+        _trayIconService.ShowNotification("笔记本温控助手", "应用已在后台静默运行，持续守护系统温度。", false);
+    }
+
+    private void RestoreFromTray()
     {
         Show();
         WindowState = WindowState.Normal;
         Activate();
     }
-
-    private async void TrayIconService_ExitRequested(object? sender, EventArgs e) => await ExitApplicationAsync();
 
     private async Task ExitApplicationAsync()
     {
@@ -231,6 +283,7 @@ public partial class MainWindow : Window
         finally
         {
             _isExitApproved = true;
+            _floatingWindow?.Close();
             _trayIconService.Dispose();
             // Closing can be raised by a user close request. Queue the final Close so
             // this handler has returned before WPF begins the approved close cycle.

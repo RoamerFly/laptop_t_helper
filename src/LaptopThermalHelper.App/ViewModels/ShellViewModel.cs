@@ -78,6 +78,8 @@ public partial class ShellViewModel : ObservableObject
 
     public event EventHandler<int>? SamplingIntervalChanged;
 
+    public event EventHandler<bool>? FloatingWindowVisibilityChanged;
+
     [ObservableProperty]
     private NavigationItem? _selectedNavigation;
 
@@ -116,6 +118,9 @@ public partial class ShellViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _minimizeToTray;
+
+    [ObservableProperty]
+    private bool _showFloatingWindow;
 
     [ObservableProperty]
     private string _cpuHighThreshold = "90";
@@ -227,6 +232,16 @@ public partial class ShellViewModel : ObservableObject
         {
             PersistAutoCoolingPreferenceAsync(value);
         }
+    }
+
+    partial void OnShowFloatingWindowChanged(bool value)
+    {
+        if (!_applyingStoredSettings)
+        {
+            PersistShowFloatingWindowPreferenceAsync(value);
+        }
+
+        FloatingWindowVisibilityChanged?.Invoke(this, value);
     }
 
     partial void OnSelectedLogFilterChanged(string value)
@@ -748,6 +763,30 @@ public partial class ShellViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    public void ToggleFloatingWindow()
+    {
+        ShowFloatingWindow = !ShowFloatingWindow;
+    }
+
+    public async Task UpdateFloatingWindowPositionAsync(double left, double top)
+    {
+        ApplicationSettings requested = _systemIntegrationService.Settings with
+        {
+            FloatingWindowLeft = left,
+            FloatingWindowTop = top,
+        };
+        await _systemIntegrationService.SaveSettingsAsync(requested);
+    }
+
+    private async void PersistShowFloatingWindowPreferenceAsync(bool enabled)
+    {
+        ApplicationSettings requested = _systemIntegrationService.Settings with { ShowFloatingWindow = enabled };
+        SettingsSaveResult result = await _systemIntegrationService.SaveSettingsAsync(requested);
+        OperationFeedback = enabled ? "已开启桌面温度悬浮窗。" : "已关闭桌面温度悬浮窗。";
+        AddLog("设置", OperationFeedback, ApplicationEventLevel.Information);
+    }
+
     private bool TryCreateSettings(out ApplicationSettings settings, out string? error)
     {
         if (!int.TryParse(CpuHighThreshold, out int cpu) || !int.TryParse(GpuHighThreshold, out int gpu) ||
@@ -768,6 +807,7 @@ public partial class ShellViewModel : ObservableObject
             CriticalAlertSoundEnabled = WarningSoundEnabled,
             StartWithWindows = StartWithWindows,
             MinimizeToTray = MinimizeToTray,
+            ShowFloatingWindow = ShowFloatingWindow,
             CpuHighThresholdCelsius = cpu,
             GpuHighThresholdCelsius = gpu,
             StorageHighThresholdCelsius = storage,
@@ -810,6 +850,7 @@ public partial class ShellViewModel : ObservableObject
             WarningSoundEnabled = settings.CriticalAlertSoundEnabled;
             StartWithWindows = settings.StartWithWindows;
             MinimizeToTray = settings.MinimizeToTray;
+            ShowFloatingWindow = settings.ShowFloatingWindow;
             CpuHighThreshold = settings.CpuHighThresholdCelsius.ToString(CultureInfo.InvariantCulture);
             GpuHighThreshold = settings.GpuHighThresholdCelsius.ToString(CultureInfo.InvariantCulture);
             StorageHighThreshold = settings.StorageHighThresholdCelsius.ToString(CultureInfo.InvariantCulture);
