@@ -46,7 +46,14 @@ public sealed record SensorReading(
     double? Value,
     string Unit,
     DateTimeOffset Timestamp,
-    ReadingQuality Quality);
+    ReadingQuality Quality)
+{
+    public double? Minimum { get; init; }
+
+    public double? Maximum { get; init; }
+
+    public double? Average { get; init; }
+}
 
 public sealed record DeviceSample(
     string DeviceId,

@@ -33,6 +33,45 @@ public sealed record TemperatureThresholds(
         _ => CpuDefault,
     };
 
+    public static TemperatureThresholds CreateFromHigh(DeviceKind kind, double highThreshold)
+    {
+        double high;
+        double elevated;
+        double critical;
+
+        switch (kind)
+        {
+            case DeviceKind.Gpu:
+                high = Math.Clamp(highThreshold, 50, 110);
+                elevated = Math.Max(30, high - 7);
+                critical = Math.Min(120, high + 5);
+                break;
+            case DeviceKind.Storage:
+                high = Math.Clamp(highThreshold, 40, 100);
+                elevated = Math.Max(25, high - 10);
+                critical = Math.Min(115, high + 10);
+                break;
+            case DeviceKind.Cpu:
+            default:
+                high = Math.Clamp(highThreshold, 50, 110);
+                elevated = Math.Max(30, high - 10);
+                critical = Math.Min(125, high + 5);
+                break;
+        }
+
+        if (elevated >= high)
+        {
+            elevated = high - 1;
+        }
+
+        if (critical <= high)
+        {
+            critical = high + 1;
+        }
+
+        return Create(elevated, high, critical);
+    }
+
     public void Validate()
     {
         if (ElevatedAt >= HighAt || HighAt >= CriticalAt)

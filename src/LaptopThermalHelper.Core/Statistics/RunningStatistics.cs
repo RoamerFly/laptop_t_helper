@@ -6,6 +6,8 @@ public sealed class RunningStatistics
 
     public long Count { get; private set; }
 
+    public double? Minimum { get; private set; }
+
     public double? Maximum { get; private set; }
 
     public double? Average => Count == 0 ? null : _sum / Count;
@@ -19,6 +21,7 @@ public sealed class RunningStatistics
 
         Count++;
         _sum += value.Value;
-        Maximum = Maximum is null ? value : Math.Max(Maximum.Value, value.Value);
+        Minimum = Minimum is null ? value.Value : Math.Min(Minimum.Value, value.Value);
+        Maximum = Maximum is null ? value.Value : Math.Max(Maximum.Value, value.Value);
     }
 }

@@ -79,7 +79,7 @@ public sealed class SystemIntegrationService
 
         // Restore first. A settings-write failure must never prevent recovery of a
         // previously modified public processor-power setting.
-        if (!normalized.AutoCoolingEnabled)
+        if (!normalized.AutoCoolingEnabled || normalized.CoolingPolicy == CoolingPolicyKind.MonitorOnly)
         {
             AutoCoolingStatus restoreStatus = await _autoCoolingService
                 .DisableAsync(cancellationToken)

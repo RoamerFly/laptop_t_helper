@@ -306,6 +306,10 @@ public partial class ShellViewModel : ObservableObject
                 : $"“{policy}”策略保存失败：{result.Message}";
             if (result.Succeeded)
             {
+                Dashboard.UpdateThresholds(
+                    result.Settings.CpuHighThresholdCelsius,
+                    result.Settings.GpuHighThresholdCelsius,
+                    result.Settings.StorageHighThresholdCelsius);
                 SamplingIntervalChanged?.Invoke(this, result.Settings.SamplingIntervalSeconds);
             }
         }
@@ -354,6 +358,10 @@ public partial class ShellViewModel : ObservableObject
             : result.Message;
         if (result.Succeeded)
         {
+            Dashboard.UpdateThresholds(
+                result.Settings.CpuHighThresholdCelsius,
+                result.Settings.GpuHighThresholdCelsius,
+                result.Settings.StorageHighThresholdCelsius);
             SamplingIntervalChanged?.Invoke(this, result.Settings.SamplingIntervalSeconds);
         }
     }
@@ -367,6 +375,13 @@ public partial class ShellViewModel : ObservableObject
             ? "已恢复默认应用设置；如自动降温曾修改电源设置，已请求恢复原始状态。"
             : result.Message;
         StartupStatusText = result.Succeeded ? "当前用户开机启动已关闭。" : result.Message;
+        if (result.Succeeded)
+        {
+            Dashboard.UpdateThresholds(
+                result.Settings.CpuHighThresholdCelsius,
+                result.Settings.GpuHighThresholdCelsius,
+                result.Settings.StorageHighThresholdCelsius);
+        }
     }
 
     [RelayCommand]
@@ -377,11 +392,19 @@ public partial class ShellViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void ExportTemperatureLog()
+    private async Task ExportTemperatureLogAsync()
     {
-        Dashboard.ExportHistoryCommand.Execute(null);
-        OperationFeedback = "已发起本地温度 CSV 导出；结果会显示在总览和日志页。";
-        AddLog("温度历史", "请求导出本地 CSV 温度记录", ApplicationEventLevel.Information);
+        await Dashboard.ExportHistoryCommand.ExecuteAsync(null);
+        if (Dashboard.LastHistoryExportPath is not null)
+        {
+            OperationFeedback = $"已导出温度日志：{Dashboard.LastHistoryExportPath}";
+        }
+        else
+        {
+            OperationFeedback = Dashboard.HistoryExportActionText;
+        }
+
+        AddLog("温度历史", OperationFeedback, ApplicationEventLevel.Information);
     }
 
     [RelayCommand]
@@ -432,8 +455,36 @@ public partial class ShellViewModel : ObservableObject
     [RelayCommand]
     private void ShowLicense()
     {
-        OperationFeedback = "本项目使用 MIT 许可证，并按 MPL-2.0 声明引用 LibreHardwareMonitor。";
-        AddLog("关于", OperationFeedback, ApplicationEventLevel.Information);
+        string[] candidates =
+        [
+            Path.Combine(AppContext.BaseDirectory, "LICENSES", "THIRD-PARTY-NOTICES.md"),
+            Path.Combine(AppContext.BaseDirectory, "LICENSE.txt"),
+            Path.Combine(AppContext.BaseDirectory, "LICENSE"),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "LICENSES", "THIRD-PARTY-NOTICES.md"),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "LICENSE"),
+        ];
+
+        string? existingFile = candidates.FirstOrDefault(File.Exists);
+        if (existingFile is not null)
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo(Path.GetFullPath(existingFile))
+                {
+                    UseShellExecute = true,
+                });
+                OperationFeedback = "已打开许可证与第三方声明文件。";
+                AddLog("关于", OperationFeedback, ApplicationEventLevel.Information);
+                return;
+            }
+            catch (Exception ex)
+            {
+                OperationFeedback = $"打开许可证文件失败：{ex.Message}";
+                AddLog("关于", OperationFeedback, ApplicationEventLevel.Warning);
+            }
+        }
+
+        OpenInBrowser("https://github.com/RoamerFly/laptop_t_helper/tree/main/LICENSES", "许可证与第三方说明");
     }
 
     [RelayCommand]
@@ -585,6 +636,10 @@ public partial class ShellViewModel : ObservableObject
         {
             SettingsLoadResult result = await _systemIntegrationService.InitializeAsync(cancellationToken);
             ApplySettings(result.Settings);
+            Dashboard.UpdateThresholds(
+                result.Settings.CpuHighThresholdCelsius,
+                result.Settings.GpuHighThresholdCelsius,
+                result.Settings.StorageHighThresholdCelsius);
             StartupStatusText = result.Notice ?? "已加载本机设置。";
             AutoCoolingStatus = _systemIntegrationService.AutoCoolingStatus.Message;
             RefreshActivityLogs();

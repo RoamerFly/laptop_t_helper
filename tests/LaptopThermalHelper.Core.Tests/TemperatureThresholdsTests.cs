@@ -39,4 +39,27 @@ public sealed class TemperatureThresholdsTests
 
         Assert.Equal(ThermalLevel.Unknown, actual);
     }
+
+    [Fact]
+    public void CreateFromHigh_ProducesValidThresholdsForCustomConfiguration()
+    {
+        TemperatureThresholds cpuThresholds = TemperatureThresholds.CreateFromHigh(DeviceKind.Cpu, 85);
+        Assert.Equal(75, cpuThresholds.ElevatedAt);
+        Assert.Equal(85, cpuThresholds.HighAt);
+        Assert.Equal(90, cpuThresholds.CriticalAt);
+        Assert.Equal(ThermalLevel.Normal, cpuThresholds.Classify(74.9));
+        Assert.Equal(ThermalLevel.Elevated, cpuThresholds.Classify(75));
+        Assert.Equal(ThermalLevel.High, cpuThresholds.Classify(85));
+        Assert.Equal(ThermalLevel.Critical, cpuThresholds.Classify(90));
+
+        TemperatureThresholds gpuThresholds = TemperatureThresholds.CreateFromHigh(DeviceKind.Gpu, 80);
+        Assert.Equal(73, gpuThresholds.ElevatedAt);
+        Assert.Equal(80, gpuThresholds.HighAt);
+        Assert.Equal(85, gpuThresholds.CriticalAt);
+
+        TemperatureThresholds storageThresholds = TemperatureThresholds.CreateFromHigh(DeviceKind.Storage, 65);
+        Assert.Equal(55, storageThresholds.ElevatedAt);
+        Assert.Equal(65, storageThresholds.HighAt);
+        Assert.Equal(75, storageThresholds.CriticalAt);
+    }
 }

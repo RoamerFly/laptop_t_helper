@@ -4,7 +4,7 @@ namespace LaptopThermalHelper.Core.Thermal;
 
 public sealed class ThermalStateMachine
 {
-    private readonly TemperatureThresholds _thresholds;
+    private TemperatureThresholds _thresholds;
     private ThermalLevel? _pendingLevel;
     private DateTimeOffset? _pendingSince;
 
@@ -14,7 +14,16 @@ public sealed class ThermalStateMachine
         _thresholds = thresholds;
     }
 
+    public TemperatureThresholds Thresholds => _thresholds;
+
     public ThermalLevel CurrentLevel { get; private set; } = ThermalLevel.Unknown;
+
+    public void UpdateThresholds(TemperatureThresholds thresholds)
+    {
+        thresholds.Validate();
+        _thresholds = thresholds;
+        ResetPending();
+    }
 
     public ThermalLevel Observe(double? temperature, DateTimeOffset timestamp)
     {

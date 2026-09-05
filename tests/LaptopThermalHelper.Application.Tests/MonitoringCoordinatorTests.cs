@@ -207,6 +207,79 @@ public sealed class MonitoringCoordinatorTests
         Assert.Equal(HardwareProviderMode.RealHardware, snapshot.Status.Mode);
     }
 
+    [Fact]
+    public async Task UpdateThresholds_DynamicallyUpdatesStateMachinesForDevices()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        var sample1 = Sample("cpu", DeviceKind.Cpu, 78, now);
+        var sample2 = Sample("cpu", DeviceKind.Cpu, 78, now.AddSeconds(2));
+        var sample3 = Sample("cpu", DeviceKind.Cpu, 78, now.AddSeconds(25));
+        IHardwareMonitorProvider provider = CreateSequentialProvider(sample1, sample2, sample3);
+        var coordinator = new MonitoringCoordinator(provider);
+
+        // First poll: 78°C with default CPU thresholds (High=95) is Normal
+        MonitoringSnapshot snap1 = await coordinator.PollAsync();
+        Assert.Equal(ThermalLevel.Normal, snap1.Devices[0].Device.ThermalLevel);
+
+        // Update thresholds: CPU High becomes 75°C (so 78°C is in High range)
+        coordinator.UpdateThresholds(75, 80, 70);
+
+        // Second poll: within delay period (20s delay), still Normal
+        MonitoringSnapshot snap2 = await coordinator.PollAsync();
+        Assert.Equal(ThermalLevel.Normal, snap2.Devices[0].Device.ThermalLevel);
+
+        // Third poll: after 23 seconds (> 20s delay), transitions to High
+        MonitoringSnapshot snap3 = await coordinator.PollAsync();
+        Assert.Equal(ThermalLevel.High, snap3.Devices[0].Device.ThermalLevel);
+    }
+
+    [Fact]
+    public async Task PollAsync_TracksRunningStatisticsForIndividualSensors()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        SensorReading CreateReading(double val, DateTimeOffset ts) => new(
+            "gpu",
+            DeviceKind.Gpu,
+            "GPU Core",
+            "gpu/temperature/0",
+            "Core Temperature",
+            SensorMetric.Temperature,
+            val,
+            "°C",
+            ts,
+            ReadingQuality.Good);
+
+        var sample1 = Sample("gpu", DeviceKind.Gpu, 50, now) with
+        {
+            TemperatureSensors = [CreateReading(50, now)],
+        };
+        var sample2 = Sample("gpu", DeviceKind.Gpu, 70, now.AddSeconds(2)) with
+        {
+            TemperatureSensors = [CreateReading(70, now.AddSeconds(2))],
+        };
+        var sample3 = Sample("gpu", DeviceKind.Gpu, 60, now.AddSeconds(4)) with
+        {
+            TemperatureSensors = [CreateReading(60, now.AddSeconds(4))],
+        };
+
+        IHardwareMonitorProvider provider = CreateSequentialProvider(sample1, sample2, sample3);
+        var coordinator = new MonitoringCoordinator(provider);
+
+        await coordinator.PollAsync();
+        await coordinator.PollAsync();
+        MonitoringSnapshot snap = await coordinator.PollAsync();
+
+        MonitoredDeviceSnapshot device = Assert.Single(snap.Devices);
+        Assert.Equal(50, device.MinimumTemperature);
+        Assert.Equal(70, device.MaximumTemperature);
+        Assert.Equal(60, device.AverageTemperature);
+
+        SensorReading sensor = Assert.Single(device.TemperatureSensors);
+        Assert.Equal(50, sensor.Minimum);
+        Assert.Equal(70, sensor.Maximum);
+        Assert.Equal(60, sensor.Average);
+    }
+
     private static IHardwareMonitorProvider CreateSequentialProvider(params DeviceSample[] samples)
     {
         IHardwareMonitorProvider provider = Substitute.For<IHardwareMonitorProvider>();

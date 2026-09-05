@@ -93,8 +93,7 @@ public sealed class GitHubUpdateCheckService : IUpdateCheckService
                 "仓库尚未发布任何 Release，暂无可比对的版本信息。");
         }
 
-        if (!TryParseVersion(payload.TagName, out Version latest) ||
-            !TryParseVersion(payload.TagName.TrimStart('v', 'V'), out latest))
+        if (!TryParseVersion(payload.TagName, out Version latest))
         {
             return new UpdateCheckResult(
                 UpdateCheckOutcome.NetworkError,
@@ -107,20 +106,28 @@ public sealed class GitHubUpdateCheckService : IUpdateCheckService
         {
             return new UpdateCheckResult(
                 UpdateCheckOutcome.UpToDate,
-                $"已是最新版本（v{_currentVersion.ToString(3)}）。", latest.ToString(), releaseUrl);
+                $"已是最新版本（v{FormatVersion(_currentVersion)}）。", latest.ToString(), releaseUrl);
         }
 
         return new UpdateCheckResult(
             UpdateCheckOutcome.UpdateAvailable,
-            $"发现新版本 v{latest.ToString(3)}（当前 v{_currentVersion.ToString(3)}），请前往发布页下载。",
+            $"发现新版本 v{FormatVersion(latest)}（当前 v{FormatVersion(_currentVersion)}），请前往发布页下载。",
             latest.ToString(),
             releaseUrl);
     }
 
-    /// <summary>Accepts tags like “1.2.3”, “v1.2.3” or “1.2.3-beta”.</summary>
+    private static string FormatVersion(Version version) =>
+        version.Build >= 0 ? version.ToString(3) : version.ToString();
+
+    /// <summary>Accepts tags like “1”, “1.2.3”, “v1.2.3” or “1.2.3-beta”.</summary>
     private static bool TryParseVersion(string text, out Version version)
     {
         version = new Version();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
         string trimmed = text.Trim();
         int dash = trimmed.IndexOf('-');
         if (dash >= 0)
@@ -129,6 +136,16 @@ public sealed class GitHubUpdateCheckService : IUpdateCheckService
         }
 
         trimmed = trimmed.TrimStart('v', 'V');
+        string[] parts = trimmed.Split('.');
+        if (parts.Length == 1)
+        {
+            trimmed = $"{parts[0]}.0.0";
+        }
+        else if (parts.Length == 2)
+        {
+            trimmed = $"{parts[0]}.{parts[1]}.0";
+        }
+
         return Version.TryParse(trimmed, out version!);
     }
 }

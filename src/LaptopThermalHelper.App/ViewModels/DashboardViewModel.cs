@@ -31,6 +31,9 @@ public partial class DashboardViewModel : ObservableObject
 
     public HardwareCardViewModel Storage { get; }
 
+    public void UpdateThresholds(int cpuHigh, int gpuHigh, int storageHigh) =>
+        _coordinator.UpdateThresholds(cpuHigh, gpuHigh, storageHigh);
+
     public MonitoringSnapshot LastSnapshot { get; private set; } = MonitoringSnapshot.Empty;
 
     [ObservableProperty]

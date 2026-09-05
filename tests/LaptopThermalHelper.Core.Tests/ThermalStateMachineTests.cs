@@ -82,4 +82,18 @@ public sealed class ThermalStateMachineTests
         machine.Observe(60, Start);
         return machine;
     }
+
+    [Fact]
+    public void UpdateThresholds_DynamicallyChangesThermalClassification()
+    {
+        var machine = CreateNormalCpuMachine();
+        Assert.Equal(ThermalLevel.Normal, machine.Observe(78, Start.AddSeconds(1)));
+
+        // Lower High threshold from 95 to 75 (so 78 is High)
+        var custom = TemperatureThresholds.CreateFromHigh(DeviceKind.Cpu, 75);
+        machine.UpdateThresholds(custom);
+
+        Assert.Equal(ThermalLevel.Normal, machine.Observe(78, Start.AddSeconds(2)));
+        Assert.Equal(ThermalLevel.High, machine.Observe(78, Start.AddSeconds(23)));
+    }
 }

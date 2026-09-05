@@ -11,6 +11,8 @@ public sealed record MonitoredDeviceSnapshot(
     double? AverageTemperature,
     IReadOnlyList<TemperaturePoint> Trend)
 {
+    public double? MinimumTemperature { get; init; }
+
     /// <summary>
     /// All usable temperature sensors reported for this device in the current
     /// sample. The dashboard uses only the primary temperature; details can

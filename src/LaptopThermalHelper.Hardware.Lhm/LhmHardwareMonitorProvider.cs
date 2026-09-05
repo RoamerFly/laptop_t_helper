@@ -243,7 +243,11 @@ public sealed class LhmHardwareMonitorProvider : IHardwareMonitorProvider, IHard
                 item.Sensor.Value,
                 "°C",
                 timestamp,
-                ReadingQuality.Good))
+                ReadingQuality.Good)
+            {
+                Minimum = item.Sensor.Min is float min && IsUsable(min) ? min : null,
+                Maximum = item.Sensor.Max is float max && IsUsable(max) ? max : null,
+            })
             .ToArray();
 
     private static void AddDiscoveries(

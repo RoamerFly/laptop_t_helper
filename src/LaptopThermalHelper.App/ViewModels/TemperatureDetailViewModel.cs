@@ -260,16 +260,24 @@ public partial class TemperatureDetailViewModel : ObservableObject
             device.PrimaryTemperatureSensorName,
             sensor.SensorName,
             StringComparison.Ordinal);
+
+        double? min = sensor.Minimum ?? (isPrimary ? device.MinimumTemperature : null);
+        double? max = sensor.Maximum ?? (isPrimary ? device.MaximumTemperature : null);
+        double? avg = sensor.Average ?? (isPrimary ? device.AverageTemperature : null);
+
         return new TemperatureSensorReadingItem(
             DeviceKindText(device.Device.Kind),
             sensor.SensorName,
             isPrimary ? "总览主传感器" : "有效温度传感器",
             FormatTemperature(sensor.Value),
-            "--",
-            isPrimary ? FormatTemperature(device.MaximumTemperature) : "--",
-            isPrimary ? FormatTemperature(device.AverageTemperature) : "--",
+            FormatSensorMetric(min),
+            FormatSensorMetric(max),
+            FormatSensorMetric(avg),
             sensor.SensorId);
     }
+
+    private static string FormatSensorMetric(double? value) =>
+        value is double temperature && double.IsFinite(temperature) ? $"{temperature:0}°C" : "--";
 
     private static string GetDeviceRole(MonitoringSnapshot snapshot, MonitoredDeviceSnapshot device)
     {

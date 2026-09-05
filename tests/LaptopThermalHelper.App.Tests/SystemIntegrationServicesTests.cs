@@ -55,6 +55,7 @@ public sealed class SystemIntegrationServicesTests
         ApplicationSettings settings = ApplicationSettings.Default with
         {
             AutoCoolingEnabled = true,
+            CoolingPolicy = CoolingPolicyKind.Moderate,
             AutoCoolingTriggerCelsius = 90,
             AutoCoolingSustainSeconds = 30,
             AutoCoolingRecoverySeconds = 120,
@@ -88,6 +89,7 @@ public sealed class SystemIntegrationServicesTests
         ApplicationSettings settings = ApplicationSettings.Default with
         {
             AutoCoolingEnabled = true,
+            CoolingPolicy = CoolingPolicyKind.Moderate,
             AutoCoolingSustainSeconds = 10,
         };
         DateTimeOffset now = DateTimeOffset.UtcNow;
@@ -136,6 +138,7 @@ public sealed class SystemIntegrationServicesTests
         var settingsStore = new RecordingSettingsStore(ApplicationSettings.Default with
         {
             AutoCoolingEnabled = true,
+            CoolingPolicy = CoolingPolicyKind.Moderate,
             AutoCoolingSustainSeconds = 10,
         });
         var integration = CreateSystemIntegration(settingsStore, cooling, events);
@@ -237,6 +240,7 @@ public sealed class SystemIntegrationServicesTests
         var settingsStore = new RecordingSettingsStore(ApplicationSettings.Default with
         {
             AutoCoolingEnabled = true,
+            CoolingPolicy = CoolingPolicyKind.Moderate,
             AutoCoolingSustainSeconds = 10,
         })
         {
@@ -256,6 +260,62 @@ public sealed class SystemIntegrationServicesTests
         Assert.False(cooling.Status.IsPowerPlanModified);
         Assert.True(integration.Settings.AutoCoolingEnabled);
         Assert.Equal(1, settingsStore.SaveCount);
+    }
+
+    [Fact]
+    public async Task AutoCooling_MonitorOnlyPolicy_NeverAppliesPowerLimit()
+    {
+        var adapter = new RecordingPowerPlanAdapter();
+        var recoveryStore = new MemoryRecoveryStore();
+        var events = new InMemoryApplicationEventLog(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")));
+        using var service = new AutoCoolingService(adapter, recoveryStore, events);
+        ApplicationSettings settings = ApplicationSettings.Default with
+        {
+            AutoCoolingEnabled = true,
+            CoolingPolicy = CoolingPolicyKind.MonitorOnly,
+            AutoCoolingTriggerCelsius = 90,
+            AutoCoolingSustainSeconds = 10,
+        };
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+
+        await service.ObserveAsync(95, settings, now);
+        AutoCoolingStatus status = await service.ObserveAsync(95, settings, now.AddSeconds(30));
+
+        Assert.Equal(AutoCoolingState.Monitoring, status.State);
+        Assert.Equal(0, adapter.CaptureCount);
+        Assert.Equal(0, adapter.ApplyCount);
+        Assert.False(status.IsPowerPlanModified);
+    }
+
+    [Fact]
+    public async Task SaveSettings_SwitchingToMonitorOnly_RestoresPowerPlan()
+    {
+        var adapter = new RecordingPowerPlanAdapter();
+        var recoveryStore = new MemoryRecoveryStore();
+        var events = new InMemoryApplicationEventLog(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")));
+        using var cooling = new AutoCoolingService(adapter, recoveryStore, events);
+        var settingsStore = new RecordingSettingsStore(ApplicationSettings.Default with
+        {
+            AutoCoolingEnabled = true,
+            CoolingPolicy = CoolingPolicyKind.Moderate,
+            AutoCoolingSustainSeconds = 10,
+        });
+        var integration = CreateSystemIntegration(settingsStore, cooling, events);
+        await integration.InitializeAsync();
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        MonitoringAcquisitionStatus realReady = MonitoringAcquisitionStatus.Ready(HardwareProviderMode.RealHardware);
+        await integration.ObserveAsync(MonitoringSnapshotFor(realReady, 98, now));
+        await integration.ObserveAsync(MonitoringSnapshotFor(realReady, 98, now.AddSeconds(10)));
+        Assert.Equal(1, adapter.ApplyCount);
+
+        SettingsSaveResult result = await integration.SaveSettingsAsync(integration.Settings with
+        {
+            CoolingPolicy = CoolingPolicyKind.MonitorOnly,
+        });
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(1, adapter.RestoreCount);
+        Assert.False(cooling.Status.IsPowerPlanModified);
     }
 
     public static IEnumerable<object[]> UntrustedAcquisitionStatuses()

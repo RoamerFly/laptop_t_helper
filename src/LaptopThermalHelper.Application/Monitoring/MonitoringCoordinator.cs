@@ -15,6 +15,8 @@ public sealed class MonitoringCoordinator : IDisposable
     private readonly ITemperatureHistoryStore _historyStore;
     private readonly ITemperatureHistoryBuffer _historyBuffer;
     private readonly Dictionary<string, DeviceState> _states = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, RunningStatistics> _sensorStatistics = new(StringComparer.Ordinal);
+    private readonly Dictionary<DeviceKind, TemperatureThresholds> _customThresholds = new();
     private readonly SemaphoreSlim _pollLock = new(1, 1);
     private DateTimeOffset? _nextHistoryWriteAt;
 
@@ -41,6 +43,29 @@ public sealed class MonitoringCoordinator : IDisposable
     }
 
     public Exception? LastHistoryWriteError { get; private set; }
+
+    public void UpdateThresholds(int cpuHigh, int gpuHigh, int storageHigh)
+    {
+        _pollLock.Wait();
+        try
+        {
+            _customThresholds[DeviceKind.Cpu] = TemperatureThresholds.CreateFromHigh(DeviceKind.Cpu, cpuHigh);
+            _customThresholds[DeviceKind.Gpu] = TemperatureThresholds.CreateFromHigh(DeviceKind.Gpu, gpuHigh);
+            _customThresholds[DeviceKind.Storage] = TemperatureThresholds.CreateFromHigh(DeviceKind.Storage, storageHigh);
+
+            foreach (DeviceState state in _states.Values)
+            {
+                if (_customThresholds.TryGetValue(state.Kind, out TemperatureThresholds? threshold))
+                {
+                    state.StateMachine.UpdateThresholds(threshold);
+                }
+            }
+        }
+        finally
+        {
+            _pollLock.Release();
+        }
+    }
 
     public void Dispose()
     {
@@ -96,19 +121,38 @@ public sealed class MonitoringCoordinator : IDisposable
                     level,
                     sample.Timestamp);
 
+                var processedSensors = new List<SensorReading>(sample.TemperatureSensors.Count);
+                foreach (SensorReading sensor in sample.TemperatureSensors)
+                {
+                    if (sensor.Metric == SensorMetric.Temperature &&
+                        sensor.Quality == ReadingQuality.Good &&
+                        sensor.Value is double val &&
+                        IsFinite(val))
+                    {
+                        if (!_sensorStatistics.TryGetValue(sensor.SensorId, out RunningStatistics? sensorStats))
+                        {
+                            sensorStats = new RunningStatistics();
+                            _sensorStatistics.Add(sensor.SensorId, sensorStats);
+                        }
+
+                        sensorStats.Add(val);
+                        processedSensors.Add(sensor with
+                        {
+                            Minimum = sensorStats.Minimum ?? sensor.Minimum,
+                            Maximum = sensorStats.Maximum ?? sensor.Maximum,
+                            Average = sensorStats.Average ?? sensor.Average,
+                        });
+                    }
+                }
+
                 devices.Add(new MonitoredDeviceSnapshot(
                     deviceSnapshot,
                     state.Statistics.Maximum,
                     state.Statistics.Average,
                     state.Trend)
                 {
-                    TemperatureSensors = sample.TemperatureSensors
-                        .Where(static sensor =>
-                            sensor.Metric == SensorMetric.Temperature &&
-                            sensor.Quality == ReadingQuality.Good &&
-                            sensor.Value is double value &&
-                            IsFinite(value))
-                        .ToArray(),
+                    MinimumTemperature = state.Statistics.Minimum,
+                    TemperatureSensors = processedSensors,
                     PrimaryTemperatureSensorName = temperature is null
                         ? null
                         : sample.PrimaryTemperatureSensorName,
@@ -139,8 +183,13 @@ public sealed class MonitoringCoordinator : IDisposable
             return state;
         }
 
+        TemperatureThresholds thresholds = _customThresholds.TryGetValue(sample.Kind, out TemperatureThresholds? custom)
+            ? custom
+            : TemperatureThresholds.For(sample.Kind);
+
         state = new DeviceState(
-            new ThermalStateMachine(TemperatureThresholds.For(sample.Kind)),
+            sample.Kind,
+            new ThermalStateMachine(thresholds),
             new RunningStatistics(),
             new FixedRingBuffer<TemperaturePoint>(TrendCapacity));
         _states.Add(sample.DeviceId, state);
@@ -216,6 +265,7 @@ public sealed class MonitoringCoordinator : IDisposable
     }
 
     private sealed record DeviceState(
+        DeviceKind Kind,
         ThermalStateMachine StateMachine,
         RunningStatistics Statistics,
         FixedRingBuffer<TemperaturePoint> Trend);

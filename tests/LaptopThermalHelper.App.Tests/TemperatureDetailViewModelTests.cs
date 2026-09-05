@@ -65,6 +65,10 @@ public sealed class TemperatureDetailViewModelTests
         Assert.Equal("CPU Package", reading.Name);
         Assert.Equal("cpu/temperature/0", reading.Identifier);
         Assert.Equal("总览主传感器", reading.Role);
+        Assert.Equal("64°C", reading.Current);
+        Assert.Equal("64°C", reading.Minimum);
+        Assert.Equal("64°C", reading.Maximum);
+        Assert.Equal("64°C", reading.Average);
         TemperatureDeviceTreeItem storage = Assert.Single(detail.DeviceTree, item => item.Name == "NVMe");
         Assert.Equal("未提供有效温度传感器", storage.Role);
         Assert.Equal("不可用", storage.CurrentText);

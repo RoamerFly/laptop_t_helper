@@ -178,16 +178,30 @@ public sealed class AutoCoolingService : IDisposable
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            if (_recoveryLocked)
+            {
+                _aboveThresholdSince = null;
+                _belowRecoverySince = null;
+                return Status;
+            }
+
             if (!settings.AutoCoolingEnabled)
             {
                 return await RestoreIfAppliedAsync("自动降温已由用户关闭，已恢复原始电源设置。", cancellationToken)
                     .ConfigureAwait(false);
             }
 
-            if (_recoveryLocked)
+            if (settings.CoolingPolicy == CoolingPolicyKind.MonitorOnly)
             {
+                if (_originalPowerPlan is not null)
+                {
+                    return await RestoreIfAppliedAsync("降温策略已切换为仅监测，已恢复原始电源设置。", cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
                 _aboveThresholdSince = null;
                 _belowRecoverySince = null;
+                SetStatus(AutoCoolingState.Monitoring, "自动降温当前为仅监测模式，不会自动修改电源设置。", false);
                 return Status;
             }
 

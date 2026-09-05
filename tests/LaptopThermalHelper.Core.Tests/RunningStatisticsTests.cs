@@ -15,6 +15,7 @@ public sealed class RunningStatisticsTests
         statistics.Add(60);
 
         Assert.Equal(2, statistics.Count);
+        Assert.Equal(40, statistics.Minimum);
         Assert.Equal(60, statistics.Maximum);
         Assert.Equal(50, statistics.Average);
     }
